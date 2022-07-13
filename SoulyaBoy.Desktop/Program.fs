@@ -1,2 +1,6 @@
-﻿// For more information see https://aka.ms/fsharp-console-apps
-printfn "Hello from F#"
+﻿open System.IO
+
+open SoulyaBoy.Core
+
+let rom = File.ReadAllBytes("tetris.gb")
+let sb = SoulyaBoy.CreateSB(rom)
