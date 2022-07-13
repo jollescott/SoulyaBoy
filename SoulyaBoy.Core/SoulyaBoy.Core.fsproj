@@ -6,7 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="SBMmu.fs" />
+    <Compile Include="SBCpu.fs" />
+    <Compile Include="SB.fs" />
+    <Compile Include="SBOpcodes.fs" />
+    <Compile Include="SoulyaBoy.fs" />
   </ItemGroup>
 
 </Project>
