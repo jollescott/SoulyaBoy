@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32616.157
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SoulyaBoy.Core", "SoulyaBoy.Core\SoulyaBoy.Core.fsproj", "{B9ECA80B-B045-4D9B-97E4-4B59DBA88E2A}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SoulyaBoy.Desktop", "SoulyaBoy.Desktop\SoulyaBoy.Desktop.fsproj", "{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B9ECA80B-B045-4D9B-97E4-4B59DBA88E2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9ECA80B-B045-4D9B-97E4-4B59DBA88E2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9ECA80B-B045-4D9B-97E4-4B59DBA88E2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9ECA80B-B045-4D9B-97E4-4B59DBA88E2A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E96CCE53-6BAA-4065-A5A1-B2AA47D7F155}
+	EndGlobalSection
+EndGlobal
