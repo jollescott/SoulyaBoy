@@ -19,25 +19,31 @@ module SBMmuFactory =
           OAM = Array.zeroCreate 160;   IO = Array.zeroCreate 127;    HRAM = Array.zeroCreate 126; 
           IE = 0uy }
 
-
 module internal MmuIO = 
-    let private AddressLookup mmu address = 
+    let private AddressLookup (mmu: SBMmu, address: uint16) = 
         match address with
-        | address when 0x0000 < address && address < 0x3FFF -> Some (mmu.ROM, address)
-        | _ -> None
+        | address when 0x0000us < address && address < 0x3FFFus -> (mmu.ROM, address)
+        | _ -> raise (new IndexOutOfRangeException($"{address} cannot be mapped to a location in memory."))
 
     let ReadByte mmu address =
-        let result = AddressLookup mmu address
-
-        match result with
-        | Some (memory, local) -> Some memory[local]
-        | None -> None
+        let (memory, local) = AddressLookup (mmu, address)
+        memory[int(local)]
 
     let ReadShort mmu address = 
-        ()
+        let (memory, local) = AddressLookup (mmu, address)
+
+        let low = memory[int(local)] 
+        let high = memory[int(local) + 1]
+        SBUtils.toShort (high, low)
 
     let WriteByte mmu address value = 
-        ()
+        let (memory, local) = AddressLookup (mmu, address)
+        memory[int(local)] <- value
+        
 
     let WriteShort mmu address value = 
-        ()
+        let (memory, local) = AddressLookup (mmu, address)
+        let (high, low) = SBUtils.toBytes value
+
+        memory[int(local)] <- low
+        memory[int(local) + 1] <- high

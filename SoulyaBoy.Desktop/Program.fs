@@ -3,4 +3,6 @@
 open SoulyaBoy.Core
 
 let rom = File.ReadAllBytes("tetris.gb")
-let sb = SoulyaBoy.CreateSB(rom)
+let sb = SoulyaBoy.CreateSoulyaBoy(rom)
+
+SoulyaBoy.Run(sb)

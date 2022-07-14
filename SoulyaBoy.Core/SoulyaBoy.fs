@@ -5,7 +5,9 @@ module SoulyaBoy =
         SBFactory.CreateSB(rom)
 
     let Run(sb) = 
-        while true do 
-            SBOpcodes.Execute sb
-            
-            ()
+        let rec loop sb =         
+            match SBExecutor.Execute sb with
+            | Some (_, mutated) -> loop mutated 
+            | None -> ()
+
+        loop(sb)
