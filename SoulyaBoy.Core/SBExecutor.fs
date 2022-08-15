@@ -22,13 +22,15 @@ module internal SBExecutor =
 
             // Resolve the operation, name & increment value for PC
             let (operation, _, pcd) = match instruction with 
-                                            | NoExtra (Const(f), n) -> f, n, 1us
-                                            | NoExtra (Void(f), n) -> f sb, n, 1us
-                                            | NoExtra (Byte(NoArg(f)), n) -> f sb (N sb), n, 2us
-                                            | NoExtra (Short(NoArg(f)), n) -> f sb (NN sb), n, 3us
-                                            | Extra   (Byte(Arg(f)), n, x) -> f sb (N sb) x, n, 2us
-                                            | Extra   (Short(Arg(f)), n, x) -> f sb (NN sb) x, n, 3us
-                                            | _ -> raise(new InvalidOperationException("Illegal instruction type! (Tip, combine NoArg & Extra or Arg & NoExtra)"))
+                                            | (Const(c), n) -> c, n, 1us
+                                            | (ConstExtra(c, x), n) -> c x, n, 1us
+                                            | (Void(f), n) -> f sb, n, 1us
+                                            | (VoidExtra(f, x), n) -> f sb x, n, 1us
+                                            | (Byte(f), n) -> f sb (N sb), n, 2us
+                                            | (ByteExtra(f, x), n) -> f sb (N sb) x, n, 2us
+                                            | (Short(f), n) -> f sb (NN sb), n, 3us
+                                            | (ShortExtra(f, x), n) -> f sb (NN sb) x, n, 3us
+                                            | _ -> raise(new InvalidOperationException("Illegal instruction type!"))
 
             // Increment CPU PC                                 
             let iCpu = { sb.CPU with PC = sb.CPU.PC + pcd}

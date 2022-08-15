@@ -7,20 +7,24 @@ type internal SBInstructionReturn =
 type internal SBInstructionResult = 
     | Result of SBInstructionReturn
     | Chain of (SBCpu -> int * SBCpu)
-
-type internal SBArgumentInstruction<'a> = 
-    | NoArg of (SB -> 'a -> SBInstructionResult)
-    | Arg of (SB -> 'a -> byte -> SBInstructionResult)
-
-type internal SBInstructionRoutine = 
-    | Const of SBInstructionResult
-    | Void of (SB -> SBInstructionResult)
-    | Byte of SBArgumentInstruction<byte>
-    | Short of SBArgumentInstruction<uint16>
  
+type internal SBInstructionType = 
+    | Const of SBInstructionResult 
+    | ConstExtra of (int -> SBInstructionResult) * int
+    | Void of (SB -> SBInstructionResult)
+    | VoidExtra of (SB -> int -> SBInstructionResult) * int
+    | VoidRegister of (SB -> (SBCpu -> byte) -> SBInstructionResult)
+    | Byte of (SB -> byte -> SBInstructionResult)
+    | ByteExtra of (SB -> byte -> int -> SBInstructionResult) * int
+    | ByteRegister of (SB -> byte -> (SBCpu -> byte) -> SBInstructionResult)
+    | Short of (SB -> uint16 -> SBInstructionResult)
+    | ShortExtra of (SB -> uint16 -> int -> SBInstructionResult) * int
+    | ShortRegister of (SB -> uint16 -> (SBCpu -> byte) -> SBInstructionResult)
+
 type internal SBInstruction = 
-    | NoExtra of SBInstructionRoutine * string
-    | Extra of SBInstructionRoutine * string * byte
+    SBInstructionType * string
+
+type internal SBInstructionTable = Map<byte, SBInstruction>
 
 module internal SBOpcodes = 
     let internal Delegate methods = 
@@ -43,16 +47,16 @@ module internal SBOpcodes =
         let JP _ nn = 
             Result(Mutation(16, fun cpu -> { cpu with PC = nn}))
 
-        let RST sb n arg = 
-            let address = uint16(n + arg)
+        let RST sb nn arg = 
+            let address = nn + uint16(arg)
             Chain(Delegate(JP sb address, Cycles(16)))
     
-    let internal INSTRUCTIONS = Map [
-        ( 0xCEuy, NoExtra(Byte(NoArg(ByteALU.ADC)), "ADC A,n"))
+    let internal INSTRUCTIONS = SBInstructionTable [
+        ( 0xCEuy, (Byte(ByteALU.ADC), "ADC A,n"))
 
-        ( 0x0uy,  NoExtra(Const(Control.NOP), "NOP"))
+        ( 0x0uy,  (Const(Control.NOP), "NOP"))
 
-        ( 0xC3uy, NoExtra(Short(NoArg(Jump.JP)), "JP NN"))
-        ( 0xFFuy, Extra(Byte(Arg(Jump.RST)), "RST 38H", 0x38uy))
+        ( 0xC3uy, (Short(Jump.JP), "JP NN"))
+        ( 0xFFuy, (ShortExtra((Jump.RST), 0x38), "RST 38H"))
     ]
 
