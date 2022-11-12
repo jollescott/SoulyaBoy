@@ -8,8 +8,12 @@ module internal SBExecutor =
     let internal NN (sb: SB) =
         MmuIO.ReadShort sb.MMU (sb.CPU.PC + 1us)
 
-    let Execute sb =
-        let opcode = MmuIO.ReadByte sb.MMU sb.CPU.PC
+    type private OperationFunc =
+        | Unit of (unit -> SBInstructionResult)
+        | SB of (SB -> SBInstructionResult)
+
+    let Execute bsb _ =
+        let opcode = MmuIO.ReadByte bsb.MMU bsb.CPU.PC
         let instructions: SBInstructionTable = SBOpcodes.INSTRUCTIONS
 
         if not <| instructions.ContainsKey(opcode) then
@@ -19,30 +23,45 @@ module internal SBExecutor =
             // Read the instruction
             let instruction = instructions[opcode]
 
+            let ni = N bsb
+            let nni = NN bsb
+
             // Resolve the operation, name & increment value for PC
-            let (operation, _, pcd) =
+            let (operationFunc, _, pcd) =
                 match instruction with
-                | (Const (c), n) -> c, n, 1us
-                | (ConstExtra (c, x), n) -> c x, n, 1us
-                | (Void (f), n) -> f sb, n, 1us
-                | (VoidExtra (f, x), n) -> f sb x, n, 1us
-                | (VoidRegister (f, x), n) -> f sb (x sb.CPU), n, 1us
-                | (Byte (f), n) -> f sb (N sb), n, 2us
-                | (ByteExtra (f, x), n) -> f sb (N sb) x, n, 2us
-                | (Short (f), n) -> f sb (NN sb), n, 3us
-                | (ShortExtra (f, x), n) -> f sb (NN sb) x, n, 3us
+                | (Const (c), n) -> Unit(fun () -> c), n, 0us
+                | (ConstExtra (c, x), n) -> Unit(fun () -> c x), n, 0us
+                | (Void (f), n) -> SB(fun (sb) -> f sb), n, 0us
+                | (VoidExtra (f, x), n) -> SB(fun sb -> f sb x), n, 0us
+                | (VoidRegister (f, x), n) -> SB(fun sb -> f sb (x sb.CPU)), n, 0us
+                | (Byte (f), n) -> SB(fun sb -> f sb ni), n, 1us
+                | (ByteExtra (f, x), n) -> SB(fun sb -> f sb ni x), n, 1us
+                | (Short (f), n) -> SB(fun sb -> f sb nni), n, 2us
+                | (ShortExtra (f, x), n) -> SB(fun sb -> f sb nni x), n, 2us
                 | _ -> raise (new InvalidOperationException("Illegal instruction type!"))
 
-            // Increment CPU PC
-            let iCpu = { sb.CPU with PC = sb.CPU.PC + pcd }
+            // Pre instruction call PC increment
+            let isb = { bsb with CPU = {bsb.CPU with PC = bsb.CPU.PC + 1us + pcd}}
+
+            let operation = 
+                match operationFunc with
+                | Unit(f) -> f()
+                | SB(f) -> f(isb) 
+
+            let icpu = isb.CPU
 
             // Execute operation
             let (cycles, mCpu) =
                 match operation with
-                | Result (Cycles (c)) -> c, iCpu
-                | Result (Mutation (c, cpu)) -> c, cpu (iCpu)
-                | Chain (func) -> func (iCpu)
+                | Result (Cycles (c)) -> c, icpu
+                | Result (Mutation (c, cpu)) -> c, cpu icpu
+                | Chain (func) -> func icpu
+
+            let fcpu = match bsb.CPU.Interupt with
+                | Disable -> { icpu with Interupt = Disabled }
+                | Enable -> { icpu with Interupt = Enabled }
+                | _ -> icpu
 
             // Transfrom state & return
-            let mutatedSb = { sb with CPU = mCpu }
-            Some(cycles, mutatedSb)
+            let fsb = { isb with CPU = fcpu }
+            Some(cycles, fsb)
