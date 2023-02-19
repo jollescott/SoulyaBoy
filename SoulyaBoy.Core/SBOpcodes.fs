@@ -1,154 +1,209 @@
 ﻿namespace SoulyaBoy.Core
 
-type internal SBInstructionReturn =
-    | Cycles of int
-    | Mutation of int * (SBCpu -> SBCpu)
+type internal SBMutation = SB -> SB
 
-type internal SBInstructionResult =
-    | Result of SBInstructionReturn
-    | Chain of (SBCpu -> int * SBCpu)
+type internal SBInstructionProc<'a> = 'a -> int * option<SBMutation>
 
-type internal SBInstructionType =
-    | Const of SBInstructionResult
-    | ConstExtra of (int -> SBInstructionResult) * int
-    | Void of (SB -> SBInstructionResult)
-    | VoidExtra of (SB -> int -> SBInstructionResult) * int
-    | VoidRegister of (SB -> byte -> SBInstructionResult) * (SBCpu -> byte)
-    | Byte of (SB -> byte -> SBInstructionResult)
-    | ByteExtra of (SB -> byte -> int -> SBInstructionResult) * int
-    | ByteRegister of (SB -> byte -> (SBCpu -> byte) -> SBInstructionResult)
-    | Short of (SB -> uint16 -> SBInstructionResult)
-    | ShortExtra of (SB -> uint16 -> int -> SBInstructionResult) * int
-    | ShortRegister of (SB -> uint16 -> (SBCpu -> byte) -> SBInstructionResult)
+type internal SBInstructionRegister<'a> = SBInstructionProc<'a * byte> * (SBCpu -> byte)
 
-type internal SBInstruction = SBInstructionType * string
+type internal SBInstructionExtra<'a> = SBInstructionProc<'a * int> * int
 
-type internal SBInstructionTable = Map<byte, SBInstruction>
+type internal SBInstruction =
+    | Const of SBInstructionProc<unit>
+    | ConstExtra of SBInstructionExtra<unit>
+    | Void of SBInstructionProc<unit>
+    | VoidExtra of SBInstructionExtra<unit>
+    | VoidRegister of SBInstructionRegister<unit>
+    | Byte of SBInstructionProc<byte>
+    | ByteExtra of SBInstructionExtra<byte>
+    | ByteRegister of SBInstructionRegister<byte>
+    | Short of SBInstructionProc<uint16>
+    | ShortExtra of SBInstructionExtra<uint16>
+    | ShortRegister of SBInstructionRegister<uint16>
+
+type internal SBInstructionEntry = SBInstruction * string
+
+type internal SBInstructionTable = Map<byte, SBInstructionEntry>
 
 module internal SBOpcodes =
-    let internal Delegate (methods: SBInstructionResult * SBInstructionReturn) =
-        fun (cpu: SBCpu) ->
-            match methods with
-            | Result (Cycles (_)), Mutation (nc: int, mc) -> nc, mc (cpu)
-            | Result (Cycles (_)), Cycles (nc: int) -> nc, cpu
-            | Result (Mutation (_, pm)), Cycles (nc: int) -> nc, pm (cpu)
-            | Result (Mutation (_, pm)), Mutation (nc: int, nm) -> nc, nm (pm (cpu))
-            | _ -> failwith "Chaining more than one level is not supported."
+    let Execute (cycles, mutation) sb =
+        match mutation with
+        | Some (x) -> x sb
+        | None -> sb
 
     module private Jump =
-        let JP _ (nn: uint16) =
-            Result(Mutation(16, (fun (cpu: SBCpu) -> { cpu with PC = nn })))
+        let JP nn =
+            let mut sb =
+                { sb with CPU = { sb.CPU with PC = nn } }
 
-        let JR_NZ (sb: SB) (n: byte) =
-            if sb.CPU.F &&& 0b1000_0000uy = 0uy then
-                let address = int(sb.CPU.PC) + int(sbyte(n))
-                Chain(Delegate(JP sb (uint16(address)), Cycles(8)))
-            else
-                Result(Cycles(8))
+            (16, Some(mut))
 
-        let RST (sb: 'a) (nn: uint16) (arg: int) =
-            let address: uint16 = nn + uint16 (arg)
-            Chain(Delegate(JP sb address, Cycles(16)))
+        let JR_NZ n =
+            let mut sb =
+                if sb.CPU.F &&& 0b1000_0000uy = 0uy then
+                    let address = uint16 (int (sb.CPU.PC) + int (sbyte (n)))
+                    Execute (JP address) sb
+                else
+                    sb
+
+            (8, Some(mut))
+
+        let RST (nn, arg) =
+            let mut sb =
+                let address: uint16 = nn + uint16 (arg)
+                Execute (JP address) sb
+
+            (16, Some(mut))
 
     module private ByteLoads =
 
-        let LD_A _ (n: byte) =
-            Result(Mutation(8, (fun cpu -> { cpu with A = n })))
+        let LD_A n =
+            let mut sb = { sb with CPU = { sb.CPU with A = n } }
 
-        let LD_B _ (n: byte) =
-            Result(Mutation(8, (fun (cpu: SBCpu) -> { cpu with B = n })))
+            (8, Some(mut))
 
-        let LD_C _ (n: byte) =
-            Result(Mutation(8, (fun (cpu: SBCpu) -> { cpu with C = n })))
+        let LD_B n =
+            let mut sb = { sb with CPU = { sb.CPU with B = n } }
 
-        let LD_D _ (n: byte) =
-            Result(Mutation(8, (fun (cpu: SBCpu) -> { cpu with D = n })))
+            (8, Some(mut))
 
-        let LD_H_HL sb = 
-            let address = SBUtils.toShort (sb.CPU.H, sb.CPU.L)
-            let h = MmuIO.ReadByte sb.MMU address
+        let LD_C n =
+            let mut sb = { sb with CPU = { sb.CPU with C = n } }
 
-            Result(Mutation(8, fun cpu -> { cpu with H = h}))
+            (8, Some(mut))
 
-        let LD_HLD (sb: SB) =
-            let hl: uint16 = SBUtils.toShort (sb.CPU.H, sb.CPU.L) - 1us
-            let (h: byte, l: byte) = SBUtils.toBytes (hl)
+        let LD_D n =
+            let mut sb = { sb with CPU = { sb.CPU with D = n } }
 
-            MmuIO.WriteByte sb.MMU hl sb.CPU.A
+            (8, Some(mut))
 
-            Result(Mutation(8, (fun (cpu: SBCpu) -> { cpu with H = h; L = l })))
+        let LD_H_HL () =
+            let mut sb =
+                let address = SBUtils.toShort (sb.CPU.H, sb.CPU.L)
+                let h = MmuIO.ReadByte sb.MMU address
+                { sb with CPU = { sb.CPU with H = h } }
 
-    module private ShortLoads = 
-        let PUSH sb nn = 
-            MmuIO.WriteShort sb.MMU sb.CPU.SP nn
-            let sp = sb.CPU.SP - 2us
-            
-            Result(Mutation(8, fun cpu -> { cpu with SP = sp}))
+            (8, Some(mut))
 
-    module private Calls = 
+        let LD_HLD () =
+            let mut sb =
+                let hl: uint16 = SBUtils.toShort (sb.CPU.H, sb.CPU.L) - 1us
+                let (h: byte, l: byte) = SBUtils.toBytes (hl)
 
-        let CALL sb nn = 
-            // TODO: Add multilevel chaining
-            Chain(Delegate (ShortLoads.PUSH sb sb.CPU.PC, Cycles(12)))
+                MmuIO.WriteByte sb.MMU hl sb.CPU.A
+                { sb with CPU = { sb.CPU with H = h; L = l } }
 
-        let CALL_Z sb nn =    
-            if sb.CPU.F &&& 0b1000_0000uy <> 0uy then
-                Chain(Delegate(CALL sb nn, Cycles(12)))
-            else 
-                Result(Cycles(12))
+            (8, Some(mut))
+
+    module private ShortLoads =
+        let PUSH nn =
+            let mut sb =
+                MmuIO.WriteShort sb.MMU sb.CPU.SP nn
+                let sp = sb.CPU.SP - 2us
+                { sb with CPU = { sb.CPU with SP = sp } }
+
+            (8, Some(mut))
+
+    module private Calls =
+
+        let CALL nn =
+            let mut sb =
+                let pushSb = Execute (ShortLoads.PUSH sb.CPU.PC) sb
+                Execute (Jump.JP nn) pushSb
+
+            (12, Some(mut))
+
+        let CALL_Z sb nn =
+            let mut sb =
+                if sb.CPU.F &&& 0b1000_0000uy <> 0uy then
+                    Execute (CALL nn) sb
+                else
+                    sb
+
+            (12, Some(mut))
 
     module private ByteALU =
         // TODO: Cleanup
         let private DEC_Flags o r f =
-            if r = 0uy then f ||| 0b1000_0000uy else f &&& ~~~0b1000_0000uy 
-            |> fun z -> z ||| (if (o &&& 0b1000uy) = (r &&& 0b1000uy) then f ||| 0b0010_0000uy else f &&& ~~~0b0010_0000uy)
+            if r = 0uy then
+                f ||| 0b1000_0000uy
+            else
+                f &&& ~~~ 0b1000_0000uy
+            |> fun z ->
+                z
+                ||| (if (o &&& 0b1000uy) = (r &&& 0b1000uy) then
+                         f ||| 0b0010_0000uy
+                     else
+                         f &&& ~~~ 0b0010_0000uy)
             |> fun h -> h ||| 0b0100_0000uy
 
-        let DEC_B (sb: SB) =
-            let b = sb.CPU.B - 1uy
-            let f = DEC_Flags sb.CPU.B b sb.CPU.F
-            Result(Mutation(4, (fun (cpu: SBCpu) -> { cpu with B = b; F = f })))
+        let DEC_B () =
+            let mut sb =
+                let b = sb.CPU.B - 1uy
+                let f = DEC_Flags sb.CPU.B b sb.CPU.F
+                { sb with CPU = { sb.CPU with B = b; F = f } }
 
-        let DEC_D sb = 
-            let d = sb.CPU.D - 1uy
-            let f = DEC_Flags sb.CPU.D d sb.CPU.F
-            Result(Mutation(4, (fun cpu -> {cpu with D = d; F = f})))
+            (4, Some(mut))
 
-        let DEC_E (sb: SB) =
-            let e = sb.CPU.E - 1uy
-            let f = DEC_Flags sb.CPU.E e sb.CPU.F
-            Result(Mutation(4, (fun (cpu: SBCpu) -> { cpu with E = e; F = f })))
+        let DEC_D () =
+            let mut sb =
+                let d = sb.CPU.D - 1uy
+                let f = DEC_Flags sb.CPU.D d sb.CPU.F
+                { sb with CPU = { sb.CPU with D = d; F = f } }
 
-        let ADC (sb: SB) (n: byte) =
-            let carry: byte = (sb.CPU.F &&& 0b0001_0000uy)
-            Result(Mutation(8, (fun (cpu: SBCpu) -> { cpu with A = sb.CPU.A + n + carry })))
+            (4, Some(mut))
 
-        let XOR (sb: SB) (x: byte) =
-            let result: byte = sb.CPU.A ^^^ x
-            let flags: byte = if result = 0uy then 0uy else 0b1000uy
+        let DEC_E () =
+            let mut sb =
+                let e = sb.CPU.E - 1uy
+                let f = DEC_Flags sb.CPU.E e sb.CPU.F
+                { sb with CPU = { sb.CPU with E = e; F = f } }
 
-            Result(Mutation(4, (fun (cpu: SBCpu) -> { cpu with A = result; F = flags })))
+            (4, Some(mut))
+
+        let ADC n =
+            let mut sb =
+                let carry: byte = (sb.CPU.F &&& 0b0001_0000uy)
+                { sb with CPU = { sb.CPU with A = sb.CPU.A + n + carry } }
+
+            (8, Some(mut))
+
+        let XOR ((), r) =
+            let mut sb =
+                let result: byte = sb.CPU.A ^^^ r
+                let flags: byte = if result = 0uy then 0uy else 0b1000uy
+                { sb with CPU = { sb.CPU with A = result; F = flags } }
+
+            (4, Some(mut))
 
     module private ShortALU =
-        let LD_HL _ (nn: uint16) =
-            let (h: byte, l: byte) = SBUtils.toBytes nn
-            Result(Mutation(12, (fun (cpu: SBCpu) -> { cpu with H = h; L = l })))
+        let LD_HL nn =
+            let mut sb =
+                let (h: byte, l: byte) = SBUtils.toBytes nn
+                { sb with CPU = { sb.CPU with H = h; L = l } }
+
+            (12, Some(mut))
 
     module private Control =
-        let NOP = Result(Cycles(4))
+        let NOP () = (4, None)
 
-    module private Misc = 
-        let DI _ = 
-            Result(Mutation(4, fun cpu -> {cpu with Interupt = Disable}))
+    module private Misc =
+        let DI () =
+            let mut sb =
+                { sb with CPU = { sb.CPU with Interrupt = Disable } }
 
-    module private RotatesShifts = 
-        let RRA (sb: SB) = 
-            let c: byte = sb.CPU.A &&& 0b1uy
-            let a: byte = (sb.CPU.A >>> 1) &&& (c <<< 8)
+            (4, Some(mut))
 
-            let flags: byte = (if a = 0uy then 0b1000_0000uy else 0b0uy) &&& c <<< 8
+    module private RotatesShifts =
+        let RRA () =
+            let mut sb =
+                let c: byte = sb.CPU.A &&& 0b1uy
+                let a: byte = (sb.CPU.A >>> 1) &&& (c <<< 8)
 
-            Result(Mutation(4, (fun (cpu: SBCpu) -> { cpu with A = a; F = flags })))
+                let flags: byte = (if a = 0uy then 0b1000_0000uy else 0b0uy) &&& c <<< 8
+                { sb with CPU = { sb.CPU with A = a; F = flags } }
+
+            (4, Some(mut))
 
     let internal INSTRUCTIONS =
         SBInstructionTable [ (0x3Euy, (Byte(ByteLoads.LD_A), "LD A,n"))
@@ -162,16 +217,16 @@ module internal SBOpcodes =
                              (0x0Duy, (Void(ByteALU.DEC_D), "DEC D"))
                              (0x1Duy, (Void(ByteALU.DEC_E), "DEC E"))
                              (0xCEuy, (Byte(ByteALU.ADC), "ADC A,n"))
-                             (0xAFuy, (VoidRegister(ByteALU.XOR, (fun (cpu: SBCpu) -> cpu.A)), "XOR A"))
+                             (0xAFuy, (VoidRegister(ByteALU.XOR, (fun cpu -> cpu.A)), "XOR A"))
 
                              (0x0uy, (Const(Control.NOP), "NOP"))
 
                              (0xC3uy, (Short(Jump.JP), "JP NN"))
                              (0x20uy, (Byte(Jump.JR_NZ), "JR NZ"))
-                             (0xFFuy, (ShortExtra((Jump.RST), 0x38), "RST 38H"))
-                             
+                             (0xFFuy, (ShortExtra(Jump.RST, 0x38), "RST 38H"))
+
                              (0x21uy, (Short(ShortALU.LD_HL), "LD_HL"))
 
                              (0xF3uy, (Void(Misc.DI), "Misc"))
-                             
+
                              (0x1Fuy, (Void(RotatesShifts.RRA), "RRA")) ]
