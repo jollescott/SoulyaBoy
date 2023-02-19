@@ -6,25 +6,34 @@ type SBCpuInterrupt =
     | Enable
     | Enabled
 
-type SBCpu = { 
-    A: byte;
-    F: byte;
-    
-    B: byte;
-    C: byte;
-    
-    D: byte;
-    E: byte;
+type SBCpu =
+    { A: byte
+      F: byte
 
-    H: byte;
-    L: byte;
+      B: byte
+      C: byte
 
-    SP: uint16;
-    PC: uint16;
+      D: byte
+      E: byte
 
-    Interupt: SBCpuInterrupt;
-}
+      H: byte
+      L: byte
 
-module SBCpuFactory = 
-    let internal CreateCPU() = 
-        { A = 0b1uy; F = 0b0uy; B = 0xFFuy; C = 0x13uy; D = 0b0uy; E = 0xC1uy; H = 0x84uy; L = 0x03uy; PC = 0x100us; SP = 0xFFFEus; Interupt = Disabled }
+      SP: uint16
+      PC: uint16
+
+      Interrupt: SBCpuInterrupt }
+
+module SBCpuFactory =
+    let internal CreateCPU () =
+        { A = 0b1uy
+          F = 0b0uy
+          B = 0xFFuy
+          C = 0x13uy
+          D = 0b0uy
+          E = 0xC1uy
+          H = 0x84uy
+          L = 0x03uy
+          PC = 0x100us
+          SP = 0xFFFEus
+          Interrupt = Disabled }
