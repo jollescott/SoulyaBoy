@@ -94,21 +94,21 @@ module SBOpcodes =
                 { sb with CPU = { sb.CPU with H = h; L = l } }
 
             (8, Some(mut))
-            
+
         let LD_n_A n =
             let mut sb =
-                let address = 0xFF00us + uint16(n)
-                MmuIO.WriteByte sb.MMU address sb.CPU.A 
+                let address = 0xFF00us + uint16 (n)
+                MmuIO.WriteByte sb.MMU address sb.CPU.A
                 sb
-            
+
             (12, Some(mut))
-            
+
         let LD_A_n n =
             let mut sb =
-                let address = 0xFF00us + uint16(n)
+                let address = 0xFF00us + uint16 (n)
                 let A = MmuIO.ReadByte sb.MMU address
                 { sb with CPU = { sb.CPU with A = A } }
-                
+
             (12, Some(mut))
 
     module ShortLoads =
