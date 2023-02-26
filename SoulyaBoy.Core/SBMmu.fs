@@ -26,10 +26,11 @@ module SBMmuFactory =
           HRAM = Array.zeroCreate 126
           IE = Array.zeroCreate 1 }
 
-module internal MmuIO =
+module MmuIO =
     let private AddressLookup (mmu: SBMmu, address: uint16) =
         match address with
         | (address: uint16) when 0xffffus <= address -> (mmu.IE, address - 0xffffus)
+        | (address: uint16) when 0xff80us <= address && address <= 0xfffeus -> (mmu.HRAM, address - 0xff80us)
         | (address: uint16) when 0xff00us <= address && address <= 0xff7fus -> (mmu.IO, address - 0xff00us)
         | (address: uint16) when 0xfea0us <= address && address <= 0xfeffus -> (mmu.UNUSABLE, address - 0xfea0us)
         | (address: uint16) when 0xfe00us <= address && address <= 0xfe9fus -> (mmu.OAM, address - 0xfe00us)

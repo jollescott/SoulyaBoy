@@ -7,6 +7,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SoulyaBoy.Core", "SoulyaBoy
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SoulyaBoy.Desktop", "SoulyaBoy.Desktop\SoulyaBoy.Desktop.fsproj", "{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SoulyaBoy.Test", "SoulyaBoy.Test\SoulyaBoy.Test.fsproj", "{452C127B-E3D1-4FC3-A86E-7C492B60A39F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CE0CF5F1-2F56-47F3-A54E-4BBD0925CC63}.Release|Any CPU.Build.0 = Release|Any CPU
+		{452C127B-E3D1-4FC3-A86E-7C492B60A39F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{452C127B-E3D1-4FC3-A86E-7C492B60A39F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{452C127B-E3D1-4FC3-A86E-7C492B60A39F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{452C127B-E3D1-4FC3-A86E-7C492B60A39F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

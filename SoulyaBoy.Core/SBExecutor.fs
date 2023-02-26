@@ -22,7 +22,7 @@ module internal SBExecutor =
             let nni = NN bsb
 
             // Resolve the operation, name & increment value for PC
-            let (operationFunc, name, pcd) =
+            let (operationFunc, _, pcd) =
                 match instruction with
                 | Const c, n -> c (), n, 0us
                 | ConstExtra (c, e), n -> c ((), e), n, 0us
