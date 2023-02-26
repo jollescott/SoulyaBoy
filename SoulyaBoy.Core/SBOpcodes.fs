@@ -25,13 +25,13 @@ type internal SBInstructionEntry = SBInstruction * string
 
 type internal SBInstructionTable = Map<byte, SBInstructionEntry>
 
-module internal SBOpcodes =
-    let Execute (cycles, mutation) sb =
+module SBOpcodes =
+    let Execute (_, mutation) sb =
         match mutation with
         | Some (x) -> x sb
         | None -> sb
 
-    module private Jump =
+    module Jump =
         let JP nn =
             let mut sb =
                 { sb with CPU = { sb.CPU with PC = nn } }
@@ -55,7 +55,7 @@ module internal SBOpcodes =
 
             (16, Some(mut))
 
-    module private ByteLoads =
+    module ByteLoads =
 
         let LD_A n =
             let mut sb = { sb with CPU = { sb.CPU with A = n } }
@@ -94,8 +94,24 @@ module internal SBOpcodes =
                 { sb with CPU = { sb.CPU with H = h; L = l } }
 
             (8, Some(mut))
+            
+        let LD_n_A n =
+            let mut sb =
+                let address = 0xFF00us + uint16(n)
+                MmuIO.WriteByte sb.MMU address sb.CPU.A 
+                sb
+            
+            (12, Some(mut))
+            
+        let LD_A_n n =
+            let mut sb =
+                let address = 0xFF00us + uint16(n)
+                let A = MmuIO.ReadByte sb.MMU address
+                { sb with CPU = { sb.CPU with A = A } }
+                
+            (12, Some(mut))
 
-    module private ShortLoads =
+    module ShortLoads =
         let PUSH nn =
             let mut sb =
                 MmuIO.WriteShort sb.MMU sb.CPU.SP nn
@@ -104,7 +120,7 @@ module internal SBOpcodes =
 
             (8, Some(mut))
 
-    module private Calls =
+    module Calls =
 
         let CALL nn =
             let mut sb =
@@ -122,7 +138,7 @@ module internal SBOpcodes =
 
             (12, Some(mut))
 
-    module private ByteALU =
+    module ByteALU =
         // TODO: Cleanup
         let private DEC_Flags o r f =
             if r = 0uy then
@@ -176,7 +192,7 @@ module internal SBOpcodes =
 
             (4, Some(mut))
 
-    module private ShortALU =
+    module ShortALU =
         let LD_HL nn =
             let mut sb =
                 let (h: byte, l: byte) = SBUtils.toBytes nn
@@ -184,17 +200,17 @@ module internal SBOpcodes =
 
             (12, Some(mut))
 
-    module private Control =
+    module Control =
         let NOP () = (4, None)
 
-    module private Misc =
+    module Misc =
         let DI () =
             let mut sb =
                 { sb with CPU = { sb.CPU with Interrupt = Disable } }
 
             (4, Some(mut))
 
-    module private RotatesShifts =
+    module RotatesShifts =
         let RRA () =
             let mut sb =
                 let c: byte = sb.CPU.A &&& 0b1uy
@@ -212,6 +228,8 @@ module internal SBOpcodes =
                              (0x16uy, (Byte(ByteLoads.LD_D), "LD D,n"))
                              (0x66uy, (Void(ByteLoads.LD_H_HL), "LD, (HL)"))
                              (0x32uy, (Void(ByteLoads.LD_HLD), "LD (HLD),A"))
+                             (0xE0uy, (Byte(ByteLoads.LD_n_A), "LDH (n),A"))
+                             (0xF0uy, (Byte(ByteLoads.LD_A_n), "LDH A,(n)"))
 
                              (0x05uy, (Void(ByteALU.DEC_B), "DEC B"))
                              (0x0Duy, (Void(ByteALU.DEC_D), "DEC D"))
