@@ -192,6 +192,26 @@ module SBOpcodes =
 
             (4, Some(mut))
 
+        let CP_n n =
+            let mut sb =
+                let r = sb.CPU.A - n
+
+                let f =
+                    sb.CPU.F
+                    |> fun f -> f ||| (if r = 0uy then 0b1000_0000uy else 0uy)
+                    |> fun z -> z ||| 0b0100_0000uy
+                    |> fun n ->
+                        n
+                        ||| (if (sb.CPU.A &&& 0b1000uy) <> (r &&& 0b1000uy) then
+                                 0uy
+                             else
+                                 0b0010_0000uy)
+                    |> fun h -> h ||| (if sb.CPU.A < n then 0b0001_0000uy else 0uy)
+
+                { sb with CPU = { sb.CPU with F = f } }
+
+            (8, Some(mut))
+
     module ShortALU =
         let LD_HL nn =
             let mut sb =
@@ -236,6 +256,7 @@ module SBOpcodes =
                              (0x1Duy, (Void(ByteALU.DEC_E), "DEC E"))
                              (0xCEuy, (Byte(ByteALU.ADC), "ADC A,n"))
                              (0xAFuy, (VoidRegister(ByteALU.XOR, (fun cpu -> cpu.A)), "XOR A"))
+                             (0xFEuy, (Byte(ByteALU.CP_n), "CP #"))
 
                              (0x0uy, (Const(Control.NOP), "NOP"))
 
