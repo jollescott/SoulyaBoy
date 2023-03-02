@@ -28,32 +28,8 @@ type internal SBInstructionTable = Map<byte, SBInstructionEntry>
 module SBOpcodes =
     let Execute (_, mutation) sb =
         match mutation with
-        | Some (x) -> x sb
+        | Some x -> x sb
         | None -> sb
-
-    module Jump =
-        let JP nn =
-            let mut sb =
-                { sb with CPU = { sb.CPU with PC = nn } }
-
-            (16, Some(mut))
-
-        let JR_NZ n =
-            let mut sb =
-                if sb.CPU.F &&& 0b1000_0000uy = 0uy then
-                    let address = uint16 (int (sb.CPU.PC) + int (sbyte (n)))
-                    Execute (JP address) sb
-                else
-                    sb
-
-            (8, Some(mut))
-
-        let RST (nn, arg) =
-            let mut sb =
-                let address: uint16 = nn + uint16 (arg)
-                Execute (JP address) sb
-
-            (16, Some(mut))
 
     module ByteLoads =
 
@@ -114,22 +90,45 @@ module SBOpcodes =
     module ShortLoads =
         let PUSH nn =
             let mut sb =
-                MmuIO.WriteShort sb.MMU sb.CPU.SP nn
                 let sp = sb.CPU.SP - 2us
+                MmuIO.WriteShort sb.MMU sp nn
                 { sb with CPU = { sb.CPU with SP = sp } }
 
             (8, Some(mut))
+
+    module Jump =
+        let JP nn =
+            let mut sb =
+                { sb with CPU = { sb.CPU with PC = nn } }
+
+            (16, Some(mut))
+
+        let JR_NZ n =
+            let mut sb =
+                if sb.CPU.F &&& 0b1000_0000uy = 0uy then
+                    let address = uint16 (int sb.CPU.PC + int (sbyte n))
+                    Execute (JP address) sb
+                else
+                    sb
+
+            (8, Some(mut))
+
+        let RST ((), arg) =
+            let mut sb =
+                let address: uint16 = uint16 arg
+                Execute (JP address) (Execute (ShortLoads.PUSH sb.CPU.PC) sb)
+
+            (16, Some(mut))
 
     module Calls =
 
         let CALL nn =
             let mut sb =
-                let pushSb = Execute (ShortLoads.PUSH sb.CPU.PC) sb
-                Execute (Jump.JP nn) pushSb
+                Execute (Jump.JP nn) (Execute (ShortLoads.PUSH sb.CPU.PC) sb)
 
             (12, Some(mut))
 
-        let CALL_Z sb nn =
+        let CALL_Z nn =
             let mut sb =
                 if sb.CPU.F &&& 0b1000_0000uy <> 0uy then
                     Execute (CALL nn) sb
@@ -262,7 +261,10 @@ module SBOpcodes =
 
                              (0xC3uy, (Short(Jump.JP), "JP NN"))
                              (0x20uy, (Byte(Jump.JR_NZ), "JR NZ"))
-                             (0xFFuy, (ShortExtra(Jump.RST, 0x38), "RST 38H"))
+                             (0xFFuy, (VoidExtra(Jump.RST, 0x38), "RST 38H"))
+
+                             (0xCDuy, (Short(Calls.CALL), "CALL nn"))
+                             (0xCCuy, (Short(Calls.CALL_Z), "CALL Z,nn"))
 
                              (0x21uy, (Short(ShortALU.LD_HL), "LD_HL"))
 

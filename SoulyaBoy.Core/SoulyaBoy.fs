@@ -6,7 +6,7 @@ module SoulyaBoy =
     let Run (sb) =
         let rec loop sb cycle =
             match SBExecutor.Execute sb cycle with
-            | Some (_, mutated) -> loop mutated (cycle + 1)
+            | Some (cycles, mutated) -> loop mutated (cycle + cycles)
             | None -> ()
 
         loop sb 0

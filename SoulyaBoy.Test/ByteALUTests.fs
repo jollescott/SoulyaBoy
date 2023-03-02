@@ -3,7 +3,7 @@ namespace SoulyaBoy.Test
 open NUnit.Framework
 open SoulyaBoy.Core
 
-module ByteALU =
+module ByteALUTests =
     [<SetUp>]
     let Setup () = ()
 

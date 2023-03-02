@@ -9,8 +9,9 @@
 
     <ItemGroup>
         <Compile Include="Util.fs" />
-        <Compile Include="ByteLoads.fs" />
-        <Compile Include="ByteALU.fs" />
+        <Compile Include="ByteLoadsTests.fs" />
+        <Compile Include="ByteALUTests.fs" />
+        <Compile Include="JumpTests.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 
