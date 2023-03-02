@@ -43,23 +43,23 @@ module MmuIO =
 
     let ReadByte (mmu: SBMmu) (address: uint16) =
         let (memory: byte array, local: uint16) = AddressLookup(mmu, address)
-        memory[int (local)]
+        memory[int local]
 
     let ReadShort mmu address =
-        let (memory, local) = AddressLookup(mmu, address)
+        let memory, local = AddressLookup(mmu, address)
 
-        let low = memory[int (local)]
-        let high = memory[int (local) + 1]
+        let low = memory[int local]
+        let high = memory[int local + 1]
         SBUtils.toShort (high, low)
 
     let WriteByte mmu address value =
-        let (memory, local) = AddressLookup(mmu, address)
-        memory[int (local)] <- value
+        let memory, local = AddressLookup(mmu, address)
+        memory[int local] <- value
 
 
     let WriteShort mmu address value =
         let (memory, local) = AddressLookup(mmu, address)
         let (high, low) = SBUtils.toBytes value
 
-        memory[int (local)] <- low
-        memory[int (local) + 1] <- high
+        memory[int local] <- low
+        memory[int local + 1] <- high
