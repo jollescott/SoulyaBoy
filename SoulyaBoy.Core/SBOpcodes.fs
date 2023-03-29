@@ -122,7 +122,7 @@ module SBOpcodes =
         let JR_NZ n =
             let mut sb =
                 if sb.CPU.F &&& byte Flags.Z = 0uy then
-                    let address = uint16(int(sb.CPU.PC) + int(sbyte(n)))
+                    let address = uint16 (int (sb.CPU.PC) + int (sbyte (n)))
                     Execute (JP address) sb
                 else
                     sb
@@ -146,7 +146,7 @@ module SBOpcodes =
 
         let CALL_Z nn =
             let mut sb =
-                if sb.CPU.F &&& 0b1000_0000uy <> 0uy then
+                if sb.CPU.F &&& byte Flags.Z <> 0uy then
                     Execute (CALL nn) sb
                 else
                     sb
@@ -182,16 +182,20 @@ module SBOpcodes =
 
         let ADC n =
             let mut sb =
-                let carry: byte = (sb.CPU.F &&& 0b0001_0000uy)
+                let carry: byte = (sb.CPU.F &&& byte Flags.C)
                 { sb with CPU = { sb.CPU with A = sb.CPU.A + n + carry } }
 
             (8, Some(mut))
 
-        let XOR ((), r) =
+        let XOR ((), rg) =
             let mut sb =
-                let result: byte = sb.CPU.A ^^^ r
-                let flags: byte = if result = 0uy then 0uy else 0b1000uy
-                { sb with CPU = { sb.CPU with A = result; F = flags } }
+                let r: byte = rg ^^^ sb.CPU.A
+
+                { sb with CPU = { sb.CPU with A = r } }
+                |> SetIf Flags.Z (r = 0uy)
+                |> Reset Flags.N
+                |> Reset Flags.H
+                |> Reset Flags.C
 
             (4, Some(mut))
 
@@ -230,10 +234,13 @@ module SBOpcodes =
         let RRA () =
             let mut sb =
                 let c: byte = sb.CPU.A &&& 0b1uy
-                let a: byte = (sb.CPU.A >>> 1) &&& (c <<< 8)
+                let a: byte = (sb.CPU.A >>> 1) ||| (c <<< 8)
 
-                let flags: byte = (if a = 0uy then 0b1000_0000uy else 0b0uy) &&& c <<< 8
-                { sb with CPU = { sb.CPU with A = a; F = flags } }
+                { sb with CPU = { sb.CPU with A = a } }
+                |> SetIf Flags.Z (a = 0uy)
+                |> Reset Flags.N
+                |> Reset Flags.H
+                |> SetIf Flags.C (c = 1uy)
 
             (4, Some(mut))
 
