@@ -122,7 +122,7 @@ module SBOpcodes =
         let JR_NZ n =
             let mut sb =
                 if sb.CPU.F &&& byte Flags.Z = 0uy then
-                    let address = uint16 (int (sb.CPU.PC) + int (sbyte (n)))
+                    let address = uint16 (int (sb.CPU.PC) + int (sbyte n))
                     Execute (JP address) sb
                 else
                     sb
@@ -137,7 +137,6 @@ module SBOpcodes =
             (16, Some(mut))
 
     module Calls =
-
         let CALL nn =
             let mut sb =
                 Execute (Jump.JP nn) (Execute (ShortLoads.PUSH sb.CPU.PC) sb)
@@ -157,13 +156,20 @@ module SBOpcodes =
         let private DecFlags R r =
             SetIf Flags.Z (r = 0uy)
             >> Set Flags.N
-            >> SetIf Flags.H ((R &&& 0b1000uy) = (r &&& 0b1000uy))
+            >> SetIf Flags.H ((R &&& 0b1000uy) <> (r &&& 0b1000uy))
 
         let DEC_B () =
             let mut sb =
                 let b = sb.CPU.B - 1uy
                 { sb with CPU = { sb.CPU with B = b } } |> DecFlags sb.CPU.B b
 
+            (4, Some(mut))
+            
+        let DEC_C () =
+            let mut sb =
+                let c = sb.CPU.C - 1uy
+                { sb with CPU = { sb.CPU with C = c } } |> DecFlags sb.CPU.C c
+                
             (4, Some(mut))
 
         let DEC_D () =
@@ -207,7 +213,7 @@ module SBOpcodes =
                 sb
                 |> SetIf Flags.Z (r = 0uy)
                 |> Set Flags.N
-                |> SetIf Flags.H ((A &&& 0b1000uy) = (r &&& 0b1000uy))
+                |> SetIf Flags.H ((A &&& 0b1000uy) <> (r &&& 0b1000uy))
                 |> SetIf Flags.C (A < n)
 
             (8, Some(mut))
@@ -255,7 +261,7 @@ module SBOpcodes =
                              (0xF0uy, (Byte(ByteLoads.LD_A_n), "LDH A,(n)"))
 
                              (0x05uy, (Void(ByteALU.DEC_B), "DEC B"))
-                             (0x0Duy, (Void(ByteALU.DEC_D), "DEC D"))
+                             (0x0Duy, (Void(ByteALU.DEC_C), "DEC C"))
                              (0x1Duy, (Void(ByteALU.DEC_E), "DEC E"))
                              (0xCEuy, (Byte(ByteALU.ADC), "ADC A,n"))
                              (0xAFuy, (VoidRegister(ByteALU.XOR, (fun cpu -> cpu.A)), "XOR A"))
