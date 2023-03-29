@@ -26,14 +26,18 @@ type SBCpu =
 
 module SBCpuFactory =
     let internal CreateCPU () =
-        { A = 0b1uy
-          F = 0b0uy
-          B = 0xFFuy
-          C = 0x13uy
-          D = 0b0uy
-          E = 0xC1uy
-          H = 0x84uy
-          L = 0x03uy
+        let b, c = SBUtils.toBytes 0x0013us
+        let d, e = SBUtils.toBytes 0x00D8us
+        let h, l = SBUtils.toBytes 0x014Dus 
+        
+        { A = 0x01uy
+          F = 0xB0uy
+          B = b
+          C = c
+          D = d
+          E = e
+          H = h
+          L = l
           PC = 0x100us
           SP = 0xFFFEus
           Interrupt = Disabled }

@@ -2,8 +2,10 @@
 
 
 module internal SBExecutor =
-    let internal N (sb: SB) = MmuIO.ReadByte sb.MMU (sb.CPU.PC + 1us)
-    let internal NN (sb: SB) = MmuIO.ReadShort sb.MMU (sb.CPU.PC + 1us)
+    let internal N (sb: SB) =
+        fun () -> MmuIO.ReadByte sb.MMU (sb.CPU.PC + 1us)
+    let internal NN (sb: SB) =
+        fun () -> MmuIO.ReadShort sb.MMU (sb.CPU.PC + 1us)
 
     let Execute bsb _ =
         let opcode = MmuIO.ReadByte bsb.MMU bsb.CPU.PC
@@ -20,20 +22,20 @@ module internal SBExecutor =
             let nni = NN bsb
 
             // Resolve the operation, name & increment value for PC
-            let operationFunc, _, pcd =
+            let operationFunc, name, pcd =
                 match instruction with
                 | Const c, n -> c (), n, 0us
                 | ConstExtra (c, e), n -> c ((), e), n, 0us
                 | Void f, n -> f (), n, 0us
                 | VoidExtra (f, e), n -> f ((), e), n, 0us
                 | VoidRegister (f, r), n -> f ((), (r bsb.CPU)), n, 0us
-                | Byte f, n -> f ni, n, 1us
-                | ByteExtra (f, e), n -> f (ni, e), n, 1us
-                | ByteRegister (f, r), n -> f (ni, (r bsb.CPU)), n, 1us
-                | Short f, n -> f nni, n, 2us
-                | ShortExtra (f, e), n -> f (nni, e), n, 2us
-                | ShortRegister (f, r), n -> f (nni, (r bsb.CPU)), n, 2us
-            
+                | Byte f, n -> f (ni()), n, 1us
+                | ByteExtra (f, e), n -> f (ni(), e), n, 1us
+                | ByteRegister (f, r), n -> f (ni(), (r bsb.CPU)), n, 1us
+                | Short f, n -> f (nni()), n, 2us
+                | ShortExtra (f, e), n -> f (nni(), e), n, 2us
+                | ShortRegister (f, r), n -> f (nni(), (r bsb.CPU)), n, 2us
+                        
             // Pre instruction call PC increment
             let isb = { bsb with CPU = { bsb.CPU with PC = bsb.CPU.PC + 1us + pcd } }
 
