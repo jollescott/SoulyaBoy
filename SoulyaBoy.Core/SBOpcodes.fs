@@ -122,7 +122,7 @@ module SBOpcodes =
         let JR_NZ n =
             let mut sb =
                 if sb.CPU.F &&& byte Flags.Z = 0uy then
-                    let address = uint16 (int (sb.CPU.PC) + int (sbyte n))
+                    let address = uint16 (int sb.CPU.PC + int (sbyte n))
                     Execute (JP address) sb
                 else
                     sb
@@ -139,7 +139,7 @@ module SBOpcodes =
     module Calls =
         let CALL nn =
             let mut sb =
-                Execute (Jump.JP nn) (Execute (ShortLoads.PUSH sb.CPU.PC) sb)
+                Execute (ShortLoads.PUSH sb.CPU.PC) sb |> Execute (Jump.JP nn)
 
             (12, Some(mut))
 
@@ -189,7 +189,13 @@ module SBOpcodes =
         let ADC n =
             let mut sb =
                 let carry: byte = (sb.CPU.F &&& byte Flags.C)
-                { sb with CPU = { sb.CPU with A = sb.CPU.A + n + carry } }
+                let a = sb.CPU.A
+                let r = a + n + carry
+                { sb with CPU = { sb.CPU with A = r } }
+                |> SetIf Flags.Z (r = 0uy)
+                |> Reset Flags.N
+                |> SetIf Flags.H ((a &&& 0b100uy) <> (r &&& 0b100uy))
+                |> SetIf Flags.C ((a &&& 0b0100_0000uy) <> (r &&& 0b100_0000uy))
 
             (8, Some(mut))
 
@@ -213,7 +219,8 @@ module SBOpcodes =
                 sb
                 |> SetIf Flags.Z (r = 0uy)
                 |> Set Flags.N
-                |> SetIf Flags.H ((A &&& 0b1000uy) <> (r &&& 0b1000uy))
+                // Unclear if borrow or "no" borrow.
+                |> SetIf Flags.H ((A &&& 0b1000uy) = (r &&& 0b1000uy))
                 |> SetIf Flags.C (A < n)
 
             (8, Some(mut))
