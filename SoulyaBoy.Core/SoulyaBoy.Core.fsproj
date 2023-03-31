@@ -6,13 +6,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="SBUtils.fs"/>
-        <Compile Include="SBMmu.fs"/>
-        <Compile Include="SBCpu.fs"/>
-        <Compile Include="SB.fs"/>
-        <Compile Include="SBOpcodes.fs"/>
-        <Compile Include="SBExecutor.fs"/>
-        <Compile Include="SoulyaBoy.fs"/>
+        <Compile Include="SBUtils.fs" />
+        <Compile Include="SBMmu.fs" />
+        <Compile Include="SBCpu.fs" />
+        <Compile Include="SB.fs" />
+        <Compile Include="SBOpcodes.fs" />
+        <Compile Include="SBInterrupts.fs" />
+        <Compile Include="SBExecutor.fs" />
+        <Compile Include="SoulyaBoy.fs" />
     </ItemGroup>
 
 </Project>
