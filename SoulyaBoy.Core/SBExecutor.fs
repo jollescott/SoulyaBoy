@@ -1,6 +1,5 @@
 ﻿namespace SoulyaBoy.Core
 
-
 module internal SBExecutor =
     let private N sb =
         fun () -> MmuIO.ReadByte sb.MMU (sb.CPU.PC + 1us)
@@ -8,25 +7,51 @@ module internal SBExecutor =
     let private NN sb =
         fun () -> MmuIO.ReadShort sb.MMU (sb.CPU.PC + 1us)
 
-    let private increment pcd =
+    let private incrementPC pcd =
         fun sb -> { sb with CPU = { sb.CPU with PC = sb.CPU.PC + 1us + pcd } }
 
-    let private execute operationFunc =
+    let private executeOperation operation =
         fun sb ->
-            match operationFunc with
+            match operation with
             | c, Some f -> (c, f sb)
             | c, None -> (c, sb)
 
-    let private interrupt =
+    let private handleInterruptState =
         fun (cycles, sb) ->
-            let cpu =
-                match sb.CPU.Interrupt with
-                | Disable -> { sb.CPU with Interrupt = Disabled }
-                | Enable -> { sb.CPU with Interrupt = Enabled }
-                | _ -> sb.CPU
+            (cycles,
+             match sb.CPU.Interrupt with
+             | Disable -> { sb with CPU = { sb.CPU with Interrupt = Disabling } }
+             | Disabling -> { sb with CPU = { sb.CPU with Interrupt = Disabled } }
+             | Enable -> { sb with CPU = { sb.CPU with Interrupt = Enabling } }
+             | Enabling -> { sb with CPU = { sb.CPU with Interrupt = Enabled } }
+             | _ -> sb)
 
-            (cycles, { sb with CPU = cpu })
+    let private runInterrupt =
+        fun (cycles, sb) ->
+            if sb.CPU.Interrupt <> SBCpuInterrupt.Disabled then
+                let IF = MmuIO.ReadByte sb.MMU 0xFF0Fus
+                let FF = MmuIO.ReadByte sb.MMU 0xFFFFus
 
+                let interruptByte = IF &&& FF
+
+                let interruptAddress =
+                    match interruptByte with
+                    | interruptByte when interruptByte &&& 0b00001uy <> 0uy -> Some(0x40us)
+                    | interruptByte when interruptByte &&& 0b00010uy <> 0uy -> Some(0x48us)
+                    | interruptByte when interruptByte &&& 0b00100uy <> 0uy -> Some(0x50us)
+                    | interruptByte when interruptByte &&& 0b01000uy <> 0uy -> Some(0x58us)
+                    | interruptByte when interruptByte &&& 0b10000uy <> 0uy -> Some(0x60us)
+                    | _ -> None
+
+                if interruptAddress.IsSome then
+                    (cycles,
+                     sb
+                     |> SBOpcodes.Execute(SBOpcodes.ShortLoads.PUSH sb.CPU.PC)
+                     |> SBOpcodes.Execute(SBOpcodes.Jump.JP interruptAddress.Value))
+                else
+                    (cycles, sb)
+            else
+                (cycles, sb)
 
     let Execute bsb _ =
         let opcode = MmuIO.ReadByte bsb.MMU bsb.CPU.PC
@@ -57,4 +82,10 @@ module internal SBExecutor =
                 | ShortExtra (f, e), n -> f (nni (), e), n, 2us
                 | ShortRegister (f, r), n -> f (nni (), (r bsb.CPU)), n, 2us
 
-            Some(bsb |> increment pcd |> execute operation |> interrupt)
+            Some(
+                bsb
+                |> incrementPC pcd
+                |> executeOperation operation
+                |> runInterrupt
+                |> handleInterruptState
+            )
