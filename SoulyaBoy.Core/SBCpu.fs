@@ -2,8 +2,10 @@
 
 type SBCpuInterrupt =
     | Disabled
+    | Disabling
     | Disable
     | Enable
+    | Enabling
     | Enabled
 
 type SBCpu =
@@ -40,4 +42,4 @@ module SBCpuFactory =
           L = l
           PC = 0x100us
           SP = 0xFFFEus
-          Interrupt = Disabled }
+          Interrupt = Enabled }
