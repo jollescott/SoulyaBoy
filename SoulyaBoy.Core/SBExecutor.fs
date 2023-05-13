@@ -28,7 +28,7 @@ module internal SBExecutor =
 
     let private runInterrupt =
         fun (cycles, sb) ->
-            if sb.CPU.Interrupt <> SBCpuInterrupt.Disabled then
+            if sb.CPU.Interrupt <> Disabled then
                 let IF = MmuIO.ReadByte sb.MMU 0xFF0Fus
                 let FF = MmuIO.ReadByte sb.MMU 0xFFFFus
 
@@ -85,6 +85,7 @@ module internal SBExecutor =
             Some(
                 bsb
                 |> incrementPC pcd
+                |> SBGraphics.Process
                 |> executeOperation operation
                 |> runInterrupt
                 |> handleInterruptState
