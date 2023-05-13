@@ -103,6 +103,21 @@ module SBOpcodes =
 
             (12, Some(mut))
 
+        let LD_HL_n n = 
+            let mut sb = 
+                let hl = SBUtils.toShort (sb.CPU.H, sb.CPU.L)
+                MmuIO.WriteByte sb.MMU hl n
+                sb
+
+            (12, Some(mut))
+
+        let LD_nn_A nn = 
+            let mut sb = 
+                MmuIO.WriteByte sb.MMU nn sb.CPU.A
+                sb
+
+            (16, Some(mut))
+
     module ShortLoads =
         let PUSH nn =
             let mut sb =
@@ -262,10 +277,12 @@ module SBOpcodes =
                              (0x06uy, (Byte(ByteLoads.LD_B), "LD B,n"))
                              (0x0Euy, (Byte(ByteLoads.LD_C), "LD C,n"))
                              (0x16uy, (Byte(ByteLoads.LD_D), "LD D,n"))
-                             (0x66uy, (Void(ByteLoads.LD_H_HL), "LD, (HL)"))
+                             (0x66uy, (Void(ByteLoads.LD_H_HL), "LD H, (HL)"))
                              (0x32uy, (Void(ByteLoads.LD_HLD), "LD (HLD),A"))
                              (0xE0uy, (Byte(ByteLoads.LD_n_A), "LDH (n),A"))
                              (0xF0uy, (Byte(ByteLoads.LD_A_n), "LDH A,(n)"))
+                             (0x36uy, (Byte(ByteLoads.LD_HL_n), "LD (HL), n"))
+                             (0xEAuy, (Short(ByteLoads.LD_nn_A), "LD (nn),A"))
 
                              (0x05uy, (Void(ByteALU.DEC_B), "DEC B"))
                              (0x0Duy, (Void(ByteALU.DEC_C), "DEC C"))
