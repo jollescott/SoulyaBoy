@@ -18,7 +18,7 @@ module ByteLoadsTests =
             let isb = { sb with CPU = { sb.CPU with A = A } }
             let msb = SBOpcodes.Execute opcode isb
 
-            let memory = MmuIO.ReadByte msb.MMU (0xFF00us + uint16 n)
+            let memory = SBIO.ReadByte msb.MMU (0xFF00us + uint16 n)
             Assert.AreEqual(A, memory)
             
     [<Test>]
@@ -27,7 +27,7 @@ module ByteLoadsTests =
         |> fun sb ->
             let n = 3uy
             let memory = 12uy
-            MmuIO.WriteByte sb.MMU (0xFF00us + uint16 n) memory
+            SBIO.WriteByte sb.MMU (0xFF00us + uint16 n) memory
             
             let opcode = SBOpcodes.ByteLoads.LD_A_n n
             let msb = SBOpcodes.Execute opcode sb

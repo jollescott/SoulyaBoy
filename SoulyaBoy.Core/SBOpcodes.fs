@@ -1,11 +1,9 @@
 ﻿namespace SoulyaBoy.Core
 
-type internal SBMutation = SB -> SB
-
+type internal SBMutation = SB -> option<SB>
+type internal SBImmediateValue<'a> = SB -> option<'a> 
 type internal SBInstructionProc<'a> = 'a -> int * option<SBMutation>
-
 type internal SBInstructionRegister<'a> = SBInstructionProc<'a * byte> * (SBCpu -> byte)
-
 type internal SBInstructionExtra<'a> = SBInstructionProc<'a * int> * int
 
 type internal SBInstruction =
@@ -14,12 +12,12 @@ type internal SBInstruction =
     | Void of SBInstructionProc<unit>
     | VoidExtra of SBInstructionExtra<unit>
     | VoidRegister of SBInstructionRegister<unit>
-    | Byte of SBInstructionProc<byte>
-    | ByteExtra of SBInstructionExtra<byte>
-    | ByteRegister of SBInstructionRegister<byte>
-    | Short of SBInstructionProc<uint16>
-    | ShortExtra of SBInstructionExtra<uint16>
-    | ShortRegister of SBInstructionRegister<uint16>
+    | Byte of SBInstructionProc<SBImmediateValue<byte>>
+    | ByteExtra of SBInstructionExtra<SBImmediateValue<byte>>
+    | ByteRegister of SBInstructionRegister<SBImmediateValue<byte>>
+    | Short of SBInstructionProc<SBImmediateValue<uint16>>
+    | ShortExtra of SBInstructionExtra<SBImmediateValue<uint16>>
+    | ShortRegister of SBInstructionRegister<SBImmediateValue<uint16>>
 
 type internal SBInstructionEntry = SBInstruction * string
 
@@ -48,57 +46,76 @@ module SBOpcodes =
 
     module ByteLoads =
 
-        let LD_A n =
-            let mut sb = { sb with CPU = { sb.CPU with A = n } }
+        let LD_A ni =
+            let mut sb = 
+                sb 
+                |> ni
+                |> SBUtils.bind (fun n -> Some { sb with CPU = { sb.CPU with A = n } })
 
             (8, Some(mut))
 
-        let LD_B n =
-            let mut sb = { sb with CPU = { sb.CPU with B = n } }
+        let LD_B ni =
+            let mut sb =
+                sb
+                |> ni
+                |> SBUtils.bind (fun n -> Some { sb with CPU = { sb.CPU with B = n } })
 
             (8, Some(mut))
 
-        let LD_C n =
-            let mut sb = { sb with CPU = { sb.CPU with C = n } }
+        let LD_C ni =
+            let mut sb = 
+                sb
+                |> ni
+                |> SBUtils.bind (fun n -> Some { sb with CPU = { sb.CPU with C = n } })
 
             (8, Some(mut))
 
-        let LD_D n =
-            let mut sb = { sb with CPU = { sb.CPU with D = n } }
+        let LD_D ni =
+            let mut sb = 
+                sb
+                |> ni
+                |> SBUtils.bind (fun n -> Some { sb with CPU = { sb.CPU with D = n } })
 
             (8, Some(mut))
 
         let LD_H_HL () =
             let mut sb =
-                let address = SBUtils.toShort (sb.CPU.H, sb.CPU.L)
-                let h = MmuIO.ReadByte sb.MMU address
-                { sb with CPU = { sb.CPU with H = h } }
+                let address = SBUtils.toShort sb.CPU.H sb.CPU.L
+
+                sb 
+                |> SBIO.ReadByte address
+                |> SBUtils.bind (fun h -> Some { sb with CPU = { sb.CPU with H = h } })
 
             (8, Some(mut))
 
         let LD_HLD () =
-            let mut sb =
-                let hl = SBUtils.toShort (sb.CPU.H, sb.CPU.L)
-                MmuIO.WriteByte sb.MMU hl sb.CPU.A
 
-                // TODO: Move to DEC_HL
-                let (h: byte, l: byte) = SBUtils.toBytes (hl - 1us)
-                { sb with CPU = { sb.CPU with H = h; L = l } }
+            let updateHL h l sb = 
+                Some { sb with CPU = { sb.CPU with H = h; L = l } }
+
+            let mut sb =
+                let hl = SBUtils.toShort sb.CPU.H sb.CPU.L
+                let h, l = SBUtils.toBytes (hl - 1us)
+                
+                sb 
+                |> SBIO.WriteByte hl sb.CPU.A
+                |> SBUtils.bind (updateHL h l)
 
             (8, Some(mut))
 
-        let LD_n_A n =
+        let LD_n_A ni =
             let mut sb =
-                let address = 0xFF00us + uint16 n
-                MmuIO.WriteByte sb.MMU address sb.CPU.A
-                sb
+                sb 
+                |> ni
+                |> (fun n -> 0xFF00us + uint16 n)
+                |> SBIO.WriteByte address sb.CPU.A
 
             (12, Some(mut))
 
         let LD_A_n n =
             let mut sb =
                 let address = 0xFF00us + uint16 n
-                let A = MmuIO.ReadByte sb.MMU address
+                let A = SBIO.ReadByte sb.MMU address
                 { sb with CPU = { sb.CPU with A = A } }
 
             (12, Some(mut))
@@ -106,14 +123,14 @@ module SBOpcodes =
         let LD_HL_n n = 
             let mut sb = 
                 let hl = SBUtils.toShort (sb.CPU.H, sb.CPU.L)
-                MmuIO.WriteByte sb.MMU hl n
+                SBIO.WriteByte sb.MMU hl n
                 sb
 
             (12, Some(mut))
 
         let LD_nn_A nn = 
             let mut sb = 
-                MmuIO.WriteByte sb.MMU nn sb.CPU.A
+                SBIO.WriteByte sb.MMU nn sb.CPU.A
                 sb
 
             (16, Some(mut))
@@ -122,7 +139,7 @@ module SBOpcodes =
         let PUSH nn =
             let mut sb =
                 let sp = sb.CPU.SP - 2us
-                MmuIO.WriteShort sb.MMU sp nn
+                SBIO.WriteShort sb.MMU sp nn
                 { sb with CPU = { sb.CPU with SP = sp } }
 
             (8, Some(mut))
