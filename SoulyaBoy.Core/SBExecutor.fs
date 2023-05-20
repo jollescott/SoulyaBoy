@@ -1,24 +1,18 @@
 ﻿namespace SoulyaBoy.Core
 
 module internal SBExecutor =
-    let private N sb =
-        fun () -> MmuIO.ReadByte sb.MMU (sb.CPU.PC + 1us)
 
-    let private NN sb =
-        fun () -> MmuIO.ReadShort sb.MMU (sb.CPU.PC + 1us)
+    let private IncrementPC sb (operation, name, pcd) =
+        Some ({ sb with CPU = { sb.CPU with PC = sb.CPU.PC + 1us + pcd } }, operation)
 
-    let private incrementPC pcd =
-        fun sb -> { sb with CPU = { sb.CPU with PC = sb.CPU.PC + 1us + pcd } }
-
-    let private executeOperation operation =
-        fun sb ->
-            match operation with
+    let private executeOperation (sb, operation) =
+        match operation with
             | c, Some f -> (c, f sb)
             | c, None -> (c, sb)
+        |> Some
 
-    let private handleInterruptState =
-        fun (cycles, sb) ->
-            (cycles,
+    let private handleInterruptState (cycles, sb) =
+        Some (cycles,
              match sb.CPU.Interrupt with
              | Disable -> { sb with CPU = { sb.CPU with Interrupt = Disabling } }
              | Disabling -> { sb with CPU = { sb.CPU with Interrupt = Disabled } }
@@ -26,11 +20,14 @@ module internal SBExecutor =
              | Enabling -> { sb with CPU = { sb.CPU with Interrupt = Enabled } }
              | _ -> sb)
 
+(*
     let private runInterrupt =
         fun (cycles, sb) ->
             if sb.CPU.Interrupt <> Disabled then
-                let IF = MmuIO.ReadByte sb.MMU 0xFF0Fus
-                let FF = MmuIO.ReadByte sb.MMU 0xFFFFus
+                let IF = sb |> SBIO.ReadByte 0xFF0Fus
+                let FF = sb |> SBIO.ReadByte 0xFFFFus
+
+                if IF.IsNone || FF.IsNone
 
                 let interruptByte = IF &&& FF
 
@@ -52,41 +49,42 @@ module internal SBExecutor =
                     (cycles, sb)
             else
                 (cycles, sb)
+*)
 
-    let Execute bsb _ =
-        let opcode = MmuIO.ReadByte bsb.MMU bsb.CPU.PC
-        let instructions: SBInstructionTable = SBOpcodes.INSTRUCTIONS
+    let private ReadOpcode sb = 
+        sb |> (SBIO.ReadByte sb.CPU.PC)
 
-        if not <| instructions.ContainsKey(opcode) then
+    let private RetrieveOpcodeInstruction opcode = 
+        if SBOpcodes.INSTRUCTIONS.ContainsKey(opcode) then
+            let instruction = SBOpcodes.INSTRUCTIONS[opcode]
+            Some instruction
+        else 
             printf $"Instruction %X{opcode} is not implemented \n"
             None
-        else
-            // Read the instruction
-            let instruction = instructions[opcode]
 
-            let ni = N bsb
-            let nni = NN bsb
+    let private ResolveOperation sb instruction =
+        let readByteIntermediate = SBIO.ReadByte sb.CPU.PC 
+        let readShortIntermediate = SBIO.ReadShort sb.CPU.PC
 
-            // Resolve the operation, name & increment value for PC
-            let operation, _, pcd =
-                match instruction with
-                | Const c, n -> c (), n, 0us
-                | ConstExtra (c, e), n -> c ((), e), n, 0us
-                | Void f, n -> f (), n, 0us
-                | VoidExtra (f, e), n -> f ((), e), n, 0us
-                | VoidRegister (f, r), n -> f ((), (r bsb.CPU)), n, 0us
-                | Byte f, n -> f (ni ()), n, 1us
-                | ByteExtra (f, e), n -> f (ni (), e), n, 1us
-                | ByteRegister (f, r), n -> f (ni (), (r bsb.CPU)), n, 1us
-                | Short f, n -> f (nni ()), n, 2us
-                | ShortExtra (f, e), n -> f (nni (), e), n, 2us
-                | ShortRegister (f, r), n -> f (nni (), (r bsb.CPU)), n, 2us
+        match instruction with
+        | Const c, n -> c (), n, 0us
+        | ConstExtra (c, e), n -> c ((), e), n, 0us
+        | Void f, n -> f (), n, 0us
+        | VoidExtra (f, e), n -> f ((), e), n, 0us
+        | VoidRegister (f, r), n -> f ((), (r sb.CPU)), n, 0us
+        | Byte f, n -> f (readByteIntermediate), n, 1us
+        | ByteExtra (f, e), n -> f (readByteIntermediate, e), n, 1us
+        | ByteRegister (f, r), n -> f (readByteIntermediate, (r sb.CPU)), n, 1us
+        | Short f, n -> f (readShortIntermediate), n, 2us
+        | ShortExtra (f, e), n -> f (readShortIntermediate, e), n, 2us
+        | ShortRegister (f, r), n -> f (readShortIntermediate, (r sb.CPU)), n, 2us
+        |> Some
 
-            Some(
-                bsb
-                |> incrementPC pcd
-                |> SBGraphics.Process
-                |> executeOperation operation
-                |> runInterrupt
-                |> handleInterruptState
-            )
+    let Execute sb _ =
+         SBGraphics.Process sb
+        |> SBUtils.bind ReadOpcode
+        |> SBUtils.bind RetrieveOpcodeInstruction
+        |> SBUtils.bind (ResolveOperation sb)
+        |> SBUtils.bind (IncrementPC sb)
+        |> SBUtils.bind executeOperation
+        |> SBUtils.bind handleInterruptState

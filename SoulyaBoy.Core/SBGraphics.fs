@@ -2,6 +2,4 @@ namespace SoulyaBoy.Core
 
 module SBGraphics = 
     let Process sb = 
-        let LY = MmuIO.ReadByte sb.MMU 0xFF44us
-        MmuIO.WriteByte sb.MMU 0xFF44us (if LY < 153uy then LY + 1uy else 0uy)
-        sb
+        sb |> SBIO.WriteByte 0xFF44us (if sb.GPU.LY < 153uy then sb.GPU.LY + 1uy else 0uy)

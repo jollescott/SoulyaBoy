@@ -55,7 +55,7 @@ module JumpTests =
             let opcode = SBOpcodes.Jump.RST ((), arg)
             let msb = SBOpcodes.Execute opcode isb
             
-            let stackTop = MmuIO.ReadShort msb.MMU msb.CPU.SP
+            let stackTop = SBIO.ReadShort msb.MMU msb.CPU.SP
             
             Assert.AreEqual(pc, stackTop)
             Assert.AreEqual(arg, msb.CPU.PC)
