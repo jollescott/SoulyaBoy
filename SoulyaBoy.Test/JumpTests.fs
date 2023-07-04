@@ -7,23 +7,23 @@ module JumpTests =
     [<Test>]
     let Test_JP_nn () =
         Util.createTestSB
-        |> fun sb ->
-            let address = sb.CPU.PC + 3us
+        |> fun mb ->
+            let address = mb.CPU.PC + 3us
             let opcode = SBOpcodes.Jump.JP address
             
-            let msb = SBOpcodes.Execute opcode sb
+            let msb = SBOpcodes.Execute opcode mb
             
             Assert.AreEqual(address, msb.CPU.PC)
             
     [<Test>]
     let Test_JR_NZ_n () =
         Util.createTestSB
-        |> fun sb ->
+        |> fun mb ->
             let f = 0b1001_0000uy
             let pc = 2us
             let n = 3uy
             
-            let isb = { sb with CPU = { sb.CPU with F = f; PC = pc } }
+            let isb = { mb with CPU = { mb.CPU with F = f; PC = pc } }
             
             let opcode = SBOpcodes.Jump.JR_NZ n
             let msb = SBOpcodes.Execute opcode isb
@@ -31,12 +31,12 @@ module JumpTests =
             Assert.AreEqual(pc, msb.CPU.PC)
             
         Util.createTestSB
-        |> fun sb ->
+        |> fun mb ->
             let f = 0b0110_0000uy
             let pc = 2us
             let n = 3uy
             
-            let isb = { sb with CPU = { sb.CPU with F = f; PC = pc } }
+            let isb = { mb with CPU = { mb.CPU with F = f; PC = pc } }
             
             let opcode = SBOpcodes.Jump.JR_NZ n
             let msb = SBOpcodes.Execute opcode isb
@@ -46,11 +46,11 @@ module JumpTests =
     [<Test>]    
     let Test_RST_n () =
         Util.createTestSB
-        |> fun sb ->
+        |> fun mb ->
             let arg = 0x18
             let pc = 200us
             
-            let isb = { sb with CPU = { sb.CPU with PC = pc } }
+            let isb = { mb with CPU = { mb.CPU with PC = pc } }
             
             let opcode = SBOpcodes.Jump.RST ((), arg)
             let msb = SBOpcodes.Execute opcode isb

@@ -1,7 +1,7 @@
 ﻿namespace SoulyaBoy.Core
 
-type internal SBMutation = SB -> option<SB>
-type internal SBImmediateValue<'a> = SB -> option<'a> 
+type internal SBMutation = SBMb -> option<SBMb>
+type internal SBImmediateValue<'a> = SBMb -> option<'a> 
 type internal SBInstructionProc<'a> = 'a -> int * option<SBMutation>
 type internal SBInstructionRegister<'a> = SBInstructionProc<'a * byte> * (SBCpu -> byte)
 type internal SBInstructionExtra<'a> = SBInstructionProc<'a * int> * int
@@ -31,156 +31,156 @@ module SBOpcodes =
         | C = 0b0001_0000uy
 
     let internal Set flag =
-        fun sb -> { sb with CPU = { sb.CPU with F = sb.CPU.F ||| byte flag } }
+        fun mb -> { mb with CPU = { mb.CPU with F = mb.CPU.F ||| byte flag } }
 
     let internal Reset flag =
-        fun sb -> { sb with CPU = { sb.CPU with F = sb.CPU.F &&& ~~~(byte flag) } }
+        fun mb -> { mb with CPU = { mb.CPU with F = mb.CPU.F &&& ~~~(byte flag) } }
 
     let internal SetIf flag condition =
         if condition then Set flag else Reset flag
 
-    let Execute (_, mutation) sb =
+    let Execute (_, mutation) mb =
         match mutation with
-        | Some x -> x sb
-        | None -> sb
+        | Some x -> x mb
+        | None -> mb
 
     module ByteLoads =
 
         let LD_A ni =
-            let mut sb = 
-                sb 
+            let mut mb = 
+                mb 
                 |> ni
-                |> SBUtils.bind (fun n -> Some { sb with CPU = { sb.CPU with A = n } })
+                |> SBUtils.bind (fun n -> Some { mb with CPU = { mb.CPU with A = n } })
 
             (8, Some(mut))
 
         let LD_B ni =
-            let mut sb =
-                sb
+            let mut mb =
+                mb
                 |> ni
-                |> SBUtils.bind (fun n -> Some { sb with CPU = { sb.CPU with B = n } })
+                |> SBUtils.bind (fun n -> Some { mb with CPU = { mb.CPU with B = n } })
 
             (8, Some(mut))
 
         let LD_C ni =
-            let mut sb = 
-                sb
+            let mut mb = 
+                mb
                 |> ni
-                |> SBUtils.bind (fun n -> Some { sb with CPU = { sb.CPU with C = n } })
+                |> SBUtils.bind (fun n -> Some { mb with CPU = { mb.CPU with C = n } })
 
             (8, Some(mut))
 
         let LD_D ni =
-            let mut sb = 
-                sb
+            let mut mb = 
+                mb
                 |> ni
-                |> SBUtils.bind (fun n -> Some { sb with CPU = { sb.CPU with D = n } })
+                |> SBUtils.bind (fun n -> Some { mb with CPU = { mb.CPU with D = n } })
 
             (8, Some(mut))
 
         let LD_H_HL () =
-            let mut sb =
-                let address = SBUtils.toShort sb.CPU.H sb.CPU.L
+            let mut mb =
+                let address = SBUtils.toShort mb.CPU.H mb.CPU.L
 
-                sb 
+                mb 
                 |> SBIO.ReadByte address
-                |> SBUtils.bind (fun h -> Some { sb with CPU = { sb.CPU with H = h } })
+                |> SBUtils.bind (fun h -> Some { mb with CPU = { mb.CPU with H = h } })
 
             (8, Some(mut))
 
         let LD_HLD () =
 
-            let updateHL h l sb = 
-                Some { sb with CPU = { sb.CPU with H = h; L = l } }
+            let updateHL h l mb = 
+                Some { mb with CPU = { mb.CPU with H = h; L = l } }
 
-            let mut sb =
-                let hl = SBUtils.toShort sb.CPU.H sb.CPU.L
+            let mut mb =
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
                 let h, l = SBUtils.toBytes (hl - 1us)
                 
-                sb 
-                |> SBIO.WriteByte hl sb.CPU.A
+                mb 
+                |> SBIO.WriteByte hl mb.CPU.A
                 |> SBUtils.bind (updateHL h l)
 
             (8, Some(mut))
 
         let LD_n_A ni =
-            let mut sb =
-                sb 
+            let mut mb =
+                mb 
                 |> ni
                 |> (fun n -> 0xFF00us + uint16 n)
-                |> SBIO.WriteByte address sb.CPU.A
+                |> SBIO.WriteByte address mb.CPU.A
 
             (12, Some(mut))
 
         let LD_A_n n =
-            let mut sb =
+            let mut mb =
                 let address = 0xFF00us + uint16 n
-                let A = SBIO.ReadByte sb.MMU address
-                { sb with CPU = { sb.CPU with A = A } }
+                let A = SBIO.ReadByte mb.MMU address
+                { mb with CPU = { mb.CPU with A = A } }
 
             (12, Some(mut))
 
         let LD_HL_n n = 
-            let mut sb = 
-                let hl = SBUtils.toShort (sb.CPU.H, sb.CPU.L)
-                SBIO.WriteByte sb.MMU hl n
-                sb
+            let mut mb = 
+                let hl = SBUtils.toShort (mb.CPU.H, mb.CPU.L)
+                SBIO.WriteByte mb.MMU hl n
+                mb
 
             (12, Some(mut))
 
         let LD_nn_A nn = 
-            let mut sb = 
-                SBIO.WriteByte sb.MMU nn sb.CPU.A
-                sb
+            let mut mb = 
+                SBIO.WriteByte mb.MMU nn mb.CPU.A
+                mb
 
             (16, Some(mut))
 
     module ShortLoads =
         let PUSH nn =
-            let mut sb =
-                let sp = sb.CPU.SP - 2us
-                SBIO.WriteShort sb.MMU sp nn
-                { sb with CPU = { sb.CPU with SP = sp } }
+            let mut mb =
+                let sp = mb.CPU.SP - 2us
+                SBIO.WriteShort mb.MMU sp nn
+                { mb with CPU = { mb.CPU with SP = sp } }
 
             (8, Some(mut))
 
     module Jump =
         let JP nn =
-            let mut sb =
-                { sb with CPU = { sb.CPU with PC = nn } }
+            let mut mb =
+                { mb with CPU = { mb.CPU with PC = nn } }
 
             (16, Some(mut))
 
         let JR_NZ n =
-            let mut sb =
-                if sb.CPU.F &&& byte Flags.Z = 0uy then
-                    let address = uint16 (int sb.CPU.PC + int (sbyte n))
-                    Execute (JP address) sb
+            let mut mb =
+                if mb.CPU.F &&& byte Flags.Z = 0uy then
+                    let address = uint16 (int mb.CPU.PC + int (sbyte n))
+                    Execute (JP address) mb
                 else
-                    sb
+                    mb
 
             (8, Some(mut))
 
         let RST ((), arg) =
-            let mut sb =
+            let mut mb =
                 let address: uint16 = uint16 arg
-                Execute (JP address) (Execute (ShortLoads.PUSH sb.CPU.PC) sb)
+                Execute (JP address) (Execute (ShortLoads.PUSH mb.CPU.PC) mb)
 
             (16, Some(mut))
 
     module Calls =
         let CALL nn =
-            let mut sb =
-                Execute (ShortLoads.PUSH sb.CPU.PC) sb |> Execute (Jump.JP nn)
+            let mut mb =
+                Execute (ShortLoads.PUSH mb.CPU.PC) mb |> Execute (Jump.JP nn)
 
             (12, Some(mut))
 
         let CALL_Z nn =
-            let mut sb =
-                if sb.CPU.F &&& byte Flags.Z <> 0uy then
-                    Execute (CALL nn) sb
+            let mut mb =
+                if mb.CPU.F &&& byte Flags.Z <> 0uy then
+                    Execute (CALL nn) mb
                 else
-                    sb
+                    mb
 
             (12, Some(mut))
 
@@ -191,39 +191,39 @@ module SBOpcodes =
             >> SetIf Flags.H ((R &&& 0b1000uy) <> (r &&& 0b1000uy))
 
         let DEC_B () =
-            let mut sb =
-                let b = sb.CPU.B - 1uy
-                { sb with CPU = { sb.CPU with B = b } } |> DecFlags sb.CPU.B b
+            let mut mb =
+                let b = mb.CPU.B - 1uy
+                { mb with CPU = { mb.CPU with B = b } } |> DecFlags mb.CPU.B b
 
             (4, Some(mut))
             
         let DEC_C () =
-            let mut sb =
-                let c = sb.CPU.C - 1uy
-                { sb with CPU = { sb.CPU with C = c } } |> DecFlags sb.CPU.C c
+            let mut mb =
+                let c = mb.CPU.C - 1uy
+                { mb with CPU = { mb.CPU with C = c } } |> DecFlags mb.CPU.C c
                 
             (4, Some(mut))
 
         let DEC_D () =
-            let mut sb =
-                let d = sb.CPU.D - 1uy
-                { sb with CPU = { sb.CPU with D = d } } |> DecFlags sb.CPU.D d
+            let mut mb =
+                let d = mb.CPU.D - 1uy
+                { mb with CPU = { mb.CPU with D = d } } |> DecFlags mb.CPU.D d
 
             (4, Some(mut))
 
         let DEC_E () =
-            let mut sb =
-                let e = sb.CPU.E - 1uy
-                { sb with CPU = { sb.CPU with E = e } } |> DecFlags sb.CPU.E e
+            let mut mb =
+                let e = mb.CPU.E - 1uy
+                { mb with CPU = { mb.CPU with E = e } } |> DecFlags mb.CPU.E e
 
             (4, Some(mut))
 
         let ADC n =
-            let mut sb =
-                let carry: byte = (sb.CPU.F &&& byte Flags.C)
-                let a = sb.CPU.A
+            let mut mb =
+                let carry: byte = (mb.CPU.F &&& byte Flags.C)
+                let a = mb.CPU.A
                 let r = a + n + carry
-                { sb with CPU = { sb.CPU with A = r } }
+                { mb with CPU = { mb.CPU with A = r } }
                 |> SetIf Flags.Z (r = 0uy)
                 |> Reset Flags.N
                 |> SetIf Flags.H ((a &&& 0b100uy) <> (r &&& 0b100uy))
@@ -232,10 +232,10 @@ module SBOpcodes =
             (8, Some(mut))
 
         let XOR ((), rg) =
-            let mut sb =
-                let r: byte = rg ^^^ sb.CPU.A
+            let mut mb =
+                let r: byte = rg ^^^ mb.CPU.A
 
-                { sb with CPU = { sb.CPU with A = r } }
+                { mb with CPU = { mb.CPU with A = r } }
                 |> SetIf Flags.Z (r = 0uy)
                 |> Reset Flags.N
                 |> Reset Flags.H
@@ -244,11 +244,11 @@ module SBOpcodes =
             (4, Some(mut))
 
         let CP_n n =
-            let mut sb =
-                let A = sb.CPU.A
+            let mut mb =
+                let A = mb.CPU.A
                 let r = A - n
 
-                sb
+                mb
                 |> SetIf Flags.Z (r = 0uy)
                 |> Set Flags.N
                 // Unclear if borrow or "no" borrow.
@@ -259,9 +259,9 @@ module SBOpcodes =
 
     module ShortALU =
         let LD_HL nn =
-            let mut sb =
+            let mut mb =
                 let (h: byte, l: byte) = SBUtils.toBytes nn
-                { sb with CPU = { sb.CPU with H = h; L = l } }
+                { mb with CPU = { mb.CPU with H = h; L = l } }
 
             (12, Some(mut))
 
@@ -270,18 +270,18 @@ module SBOpcodes =
 
     module Misc =
         let DI () =
-            let mut sb =
-                { sb with CPU = { sb.CPU with Interrupt = Disable } }
+            let mut mb =
+                { mb with CPU = { mb.CPU with Interrupt = Disable } }
 
             (4, Some(mut))
 
     module RotatesShifts =
         let RRA () =
-            let mut sb =
-                let c: byte = sb.CPU.A &&& 0b1uy
-                let a: byte = (sb.CPU.A >>> 1) ||| (c <<< 8)
+            let mut mb =
+                let c: byte = mb.CPU.A &&& 0b1uy
+                let a: byte = (mb.CPU.A >>> 1) ||| (c <<< 8)
 
-                { sb with CPU = { sb.CPU with A = a } }
+                { mb with CPU = { mb.CPU with A = a } }
                 |> SetIf Flags.Z (a = 0uy)
                 |> Reset Flags.N
                 |> Reset Flags.H
