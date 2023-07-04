@@ -1,12 +1,12 @@
 ﻿namespace SoulyaBoy.Core
 
 module SoulyaBoy =
-    let CreateSoulyaBoy rom = SBFactory.CreateSB(rom)
+    let CreateSoulyaBoy rom = SBMbFactory.CreateSBMb(rom)
 
-    let Run sb =
-        let rec loop sb cycle =
-            match SBExecutor.Execute sb cycle with
+    let Run mb =
+        let rec loop mb cycle =
+            match SBExecutor.Execute mb cycle with
             | Some (cycles, mutated) -> loop mutated (cycle + cycles)
             | None -> ()
 
-        loop sb 0
+        loop mb 0

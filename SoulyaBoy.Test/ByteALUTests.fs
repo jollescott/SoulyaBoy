@@ -10,12 +10,12 @@ module ByteALUTests =
     [<Test>]
     let Test_CP_n_zero () =
         Util.createTestSB
-        |> fun sb ->
+        |> fun mb ->
             let n = 12uy
             let A = 12uy
 
             let opcode = SBOpcodes.ByteALU.CP_n n
-            let isb = { sb with CPU = { sb.CPU with A = A } }
+            let isb = { mb with CPU = { mb.CPU with A = A } }
             let msb = SBOpcodes.Execute opcode isb
 
             Assert.AreEqual(0b1100_0000uy, msb.CPU.F)
@@ -23,12 +23,12 @@ module ByteALUTests =
     [<Test>]
     let Test_CP_n_carry () =
         Util.createTestSB
-        |> fun sb ->
+        |> fun mb ->
             let n = 12uy
             let A = 6uy
 
             let opcode = SBOpcodes.ByteALU.CP_n n
-            let isb = { sb with CPU = { sb.CPU with A = A } }
+            let isb = { mb with CPU = { mb.CPU with A = A } }
             let msb = SBOpcodes.Execute opcode isb
 
             Assert.AreEqual(0b0101_0000uy, msb.CPU.F)
