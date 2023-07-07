@@ -4,11 +4,13 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Test.fs" />
     <Compile Include="SBUtils.fs" />
     <Compile Include="SBGpu.fs" />
     <Compile Include="SBMmu.fs" />
     <Compile Include="SBCpu.fs" />
     <Compile Include="SBMb.fs" />
+    <Compile Include="SB.fs" />
     <Compile Include="SBIO.fs" />
     <Compile Include="SBGraphics.fs" />
     <Compile Include="SBOpcodes.fs" />
