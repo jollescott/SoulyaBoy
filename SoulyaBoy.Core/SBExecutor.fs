@@ -2,8 +2,13 @@
 
 module internal SBExecutor =
 
-    let private IncrementPC mb (operation, name, pcd) =
-        Some ({ mb with CPU = { mb.CPU with PC = mb.CPU.PC + 1us + pcd } }, operation)
+    let private sb = new SBBuilder()
+
+    let private IncrementPC (operation, name, pcd) = sb {
+        let! mb = SB.Get
+        do! SB.Put { mb with CPU = { mb.CPU with PC = mb.CPU.PC + 1us + pcd } } 
+        return operation
+    }
 
     let private executeOperation (mb, operation) =
         match operation with
@@ -80,7 +85,9 @@ module internal SBExecutor =
         | ShortRegister (f, r), n -> f (readShortIntermediate, (r mb.CPU)), n, 2us
         |> Some
 
-    let Execute mb _ =
+    let Execute = sb {
+        do! SBGrap
+    }
          SBGraphics.Process mb
         |> SBUtils.bind ReadOpcode
         |> SBUtils.bind RetrieveOpcodeInstruction

@@ -24,17 +24,24 @@ type internal SBInstructionEntry = SBInstruction * string
 type internal SBInstructionTable = Map<byte, SBInstructionEntry>
 
 module SBOpcodes =
+
+    let private sb = new SBBuilder()
+
     type internal Flags =
         | Z = 0b1000_0000uy
         | N = 0b0100_0000uy
         | H = 0b0010_0000uy
         | C = 0b0001_0000uy
 
-    let internal Set flag =
-        fun mb -> { mb with CPU = { mb.CPU with F = mb.CPU.F ||| byte flag } }
+    let internal Set flag = sb {
+        let! mb = SB.Get
+        do! SB.Put {mb with CPU = { mb.CPU with F = mb.CPU.F ||| (byte flag) }} 
+    }   
 
-    let internal Reset flag =
-        fun mb -> { mb with CPU = { mb.CPU with F = mb.CPU.F &&& ~~~(byte flag) } }
+    let internal Reset flag = sb {
+        let! mb = SB.Get
+        do! SB.Put { mb with CPU = { mb.CPU with F = mb.CPU.F &&& ~~~(byte flag) }}
+    }
 
     let internal SetIf flag condition =
         if condition then Set flag else Reset flag
