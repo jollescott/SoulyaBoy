@@ -1,9 +1,9 @@
 ﻿namespace SoulyaBoy.Core
 
-// TODO: Cleanup SBImmediateValue
+// TODO: Cleanup SBImmediateValue & SBInstructionRegister
 type internal SBImmediateValue<'a> = 'a
 type internal SBInstructionProc<'a> = 'a -> SB<unit>
-type internal SBInstructionRegister<'a> = SBInstructionProc<'a * byte> * (SBCpu -> byte)
+type internal SBInstructionRegister = SBInstructionProc<byte> * (SBCpu -> byte)
 type internal SBInstructionExtra<'a> = SBInstructionProc<'a * int> * int
 
 type internal SBInstruction =
@@ -11,13 +11,11 @@ type internal SBInstruction =
     | ConstExtra of SBInstructionExtra<unit>
     | Void of SBInstructionProc<unit>
     | VoidExtra of SBInstructionExtra<unit>
-    | VoidRegister of SBInstructionRegister<unit>
+    | Register of SBInstructionRegister
     | Byte of SBInstructionProc<SBImmediateValue<byte>>
     | ByteExtra of SBInstructionExtra<SBImmediateValue<byte>>
-    | ByteRegister of SBInstructionRegister<SBImmediateValue<byte>>
     | Short of SBInstructionProc<SBImmediateValue<uint16>>
     | ShortExtra of SBInstructionExtra<SBImmediateValue<uint16>>
-    | ShortRegister of SBInstructionRegister<SBImmediateValue<uint16>>
 
 type internal SBInstructionEntry = SBInstruction * string * int
 
@@ -57,6 +55,7 @@ module SBOpcodes =
         let LD_B n = LD_n (fun mb -> { mb.CPU with B = n })
         let LD_C n = LD_n (fun mb -> { mb.CPU with C = n })
         let LD_D n = LD_n (fun mb -> { mb.CPU with D = n })
+        let LD_H n = LD_n (fun mb -> { mb.CPU with H = n })
 
         let LD_H_HL () = sb {
             let! mb = SB.Get
@@ -186,7 +185,7 @@ module SBOpcodes =
             do! SetIf Flags.C ((a &&& 0b0100_0000uy) <> (r &&& 0b100_0000uy))
         }
 
-        let XOR ((), rg) = sb {
+        let XOR rg = sb {
             let! mb = SB.Get
 
             let r = rg ^^^ mb.CPU.A
@@ -249,6 +248,7 @@ module SBOpcodes =
                              (0x06uy, (Byte(ByteLoads.LD_B), "LD B,n", 8))
                              (0x0Euy, (Byte(ByteLoads.LD_C), "LD C,n", 8))
                              (0x16uy, (Byte(ByteLoads.LD_D), "LD D,n", 8))
+                             (0x60uy, (Register(ByteLoads.LD_H, (fun cpu -> cpu.B)), "LD H,B", 4))
                              (0x66uy, (Void(ByteLoads.LD_H_HL), "LD H, (HL)", 8))
                              (0x32uy, (Void(ByteLoads.LD_HLD), "LD (HLD),A", 8))
                              (0xE0uy, (Byte(ByteLoads.LD_n_A), "LDH (n),A", 12))
@@ -260,7 +260,7 @@ module SBOpcodes =
                              (0x0Duy, (Void(ByteALU.DEC_C), "DEC C", 4))
                              (0x1Duy, (Void(ByteALU.DEC_E), "DEC E", 4))
                              (0xCEuy, (Byte(ByteALU.ADC), "ADC A,n", 8))
-                             (0xAFuy, (VoidRegister(ByteALU.XOR, (fun cpu -> cpu.A)), "XOR A", 4))
+                             (0xAFuy, (Register(ByteALU.XOR, (fun cpu -> cpu.A)), "XOR A", 4))
                              (0xFEuy, (Byte(ByteALU.CP_n), "CP #", 8))
 
                              (0x0uy, (Const(Control.NOP), "NOP", 4))
