@@ -16,6 +16,7 @@ module SBIO =
          let access = match address with
                         | (address: uint16) when 0xffffus <= address -> Some(IE)
                         | (address: uint16) when 0xff80us <= address && address <= 0xfffeus -> Some(Array(mb.MMU.HRAM, (address - 0xff80us)))
+                        | (address: uint16) when address = 0xFF44us -> Some(LY)
                         | (address: uint16) when 0xff00us <= address && address <= 0xff7fus -> Some(Array(mb.MMU.IO, (address - 0xff00us)))
                         | (address: uint16) when 0xfea0us <= address && address <= 0xfeffus -> Some(Array(mb.MMU.UNUSABLE, (address - 0xfea0us)))
                         | (address: uint16) when 0xfe00us <= address && address <= 0xfe9fus -> Some(Array(mb.MMU.OAM, (address - 0xfe00us)))

@@ -38,21 +38,19 @@ module internal SBExecutor =
         let! mb = SB.Get
 
         // TODO: Limit to evaluation when needed? 
-        let! byteImmediate = SBIO.ReadByte mb.CPU.PC 
-        let! shortIntermediate = SBIO.ReadShort mb.CPU.PC
+        let! byteImmediate = SBIO.ReadByte (mb.CPU.PC + 1us) 
+        let! shortIntermediate = SBIO.ReadShort (mb.CPU.PC + 1us)
 
         let result = match instruction with
                         | Const c, n, cyc -> c (), n, 0us, cyc
                         | ConstExtra (c, e), n, cyc -> c ((), e), n, 0us, cyc
                         | Void f, n, cyc -> f (), n, 0us, cyc
                         | VoidExtra (f, e), n, cyc -> f ((), e), n, 0us, cyc
-                        | VoidRegister (f, r), n, cyc -> f ((), (r mb.CPU)), n, 0us, cyc
                         | Byte f, n, cyc -> f (byteImmediate), n, 1us, cyc
                         | ByteExtra (f, e), n, cyc -> f (byteImmediate, e), n, 1us, cyc
-                        | ByteRegister (f, r), n, cyc -> f (byteImmediate, (r mb.CPU)), n, 1us, cyc
                         | Short f, n, cyc -> f (shortIntermediate), n, 2us, cyc
                         | ShortExtra (f, e), n, cyc -> f (shortIntermediate, e), n, 2us, cyc
-                        | ShortRegister (f, r), n, cyc -> f (shortIntermediate, (r mb.CPU)), n, 2us, cyc
+                        | Register (f, r), n, cyc -> f (r mb.CPU), n, 0us, cyc
 
         return result
     }
@@ -64,7 +62,9 @@ module internal SBExecutor =
         let! instruction = RetrieveOpcodeInstruction opcode
         let! (operation, _, pcd, cycles) = ResolveOperation instruction
         
-        do! operation
+        //printf $"{name} \n"
+
         do! IncrementPC pcd
+        do! operation
         do! handleInterruptState cycles
     }
