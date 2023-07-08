@@ -21,27 +21,27 @@ type internal SBInstructionEntry = SBInstruction * string * int
 
 type internal SBInstructionTable = Map<byte, SBInstructionEntry>
 
-module SBOpcodes =
+module internal SBOpcodes =
 
     let private sb = new SBBuilder()
 
-    type internal Flags =
+    type Flags =
         | Z = 0b1000_0000uy
         | N = 0b0100_0000uy
         | H = 0b0010_0000uy
         | C = 0b0001_0000uy
 
-    let internal Set flag = sb {
+    let Set flag = sb {
         let! mb = SB.Get
         do! SB.Put {mb with CPU = { mb.CPU with F = mb.CPU.F ||| (byte flag) }} 
     }   
 
-    let internal Reset flag = sb {
+    let Reset flag = sb {
         let! mb = SB.Get
         do! SB.Put { mb with CPU = { mb.CPU with F = mb.CPU.F &&& ~~~(byte flag) }}
     }
 
-    let internal SetIf flag condition =
+    let SetIf flag condition =
         if condition then Set flag else Reset flag
 
     module ByteLoads =
@@ -57,6 +57,13 @@ module SBOpcodes =
         let LD_D n = LD_n (fun mb -> { mb.CPU with D = n })
         let LD_H n = LD_n (fun mb -> { mb.CPU with H = n })
 
+        let LD_FF00_C_A () = sb {
+            let! mb = SB.Get
+            let address = 0xFF00us + uint16 mb.CPU.C
+
+            do! SBIO.WriteByte address mb.CPU.A
+        }
+
         let LD_H_HL () = sb {
             let! mb = SB.Get
             let address = SBUtils.toShort mb.CPU.H mb.CPU.L
@@ -64,15 +71,29 @@ module SBOpcodes =
             do! SB.Put { mb with CPU = { mb.CPU with H = h } }
         }
 
-        let LD_HLD () = sb {
+        let LD_HLD_A () = sb {
             // TODO: Solve state changes within opcode
+            // TODO: Move to LD (HL),A
             let! mb = SB.Get
 
+            // TODO Move to DEC HL
             let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
             let h, l = SBUtils.toBytes (hl - 1us)
 
             do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l } }
             do! SBIO.WriteByte hl mb.CPU.A
+        }
+
+        let LD_A_HLI () = sb {
+            let! mb = SB.Get
+
+            //TODO: Move to INC HL
+            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+            let h, l = SBUtils.toBytes (hl + 1us)
+
+            // TODO: Move to LD A,(HL)
+            let! a = SBIO.ReadByte hl
+            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l; A = a}}
         }
 
         let LD_n_A n = sb {
@@ -118,14 +139,16 @@ module SBOpcodes =
             do! SB.Put { mb with CPU = { mb.CPU with PC = nn}}
         }
 
-        let JR_NZ n = sb {
+        let JR_N flag n = sb {
             let! mb = SB.Get
 
-            if mb.CPU.F &&& byte Flags.Z = 0uy then
+            if mb.CPU.F &&& byte flag = 0uy then
                 let address = uint16 (int mb.CPU.PC + int (sbyte n))
                 return! JP address
         }
 
+        let JR_NZ = JR_N Flags.Z
+        let JR_NC = JR_N Flags.C
 
         let RST ((), arg) = sb {
             let! mb = SB.Get
@@ -212,11 +235,17 @@ module SBOpcodes =
         }
 
     module ShortALU =
-        let LD_HL nn = sb {
+        let LD_nn set nn = sb {
             let! mb = SB.Get
             let (h: byte, l: byte) = SBUtils.toBytes nn
-            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l } }
+            do! SB.Put { mb with CPU = set mb.CPU h l }
+        }
 
+        let LD_HL = LD_nn (fun cpu h l -> { cpu with H = h; L = l})
+
+        let LD_SP nn = sb {
+            let! mb = SB.Get
+            do! SB.Put { mb with CPU = { mb.CPU with SP = nn }}
         }
 
     module Control =
@@ -246,11 +275,14 @@ module SBOpcodes =
     let internal INSTRUCTIONS =
         SBInstructionTable [ (0x3Euy, (Byte(ByteLoads.LD_A), "LD A,n", 8))
                              (0x06uy, (Byte(ByteLoads.LD_B), "LD B,n", 8))
+                             (0x40uy, (Register(ByteLoads.LD_B, (fun cpu -> cpu.B)), "LD B,B", 4))
                              (0x0Euy, (Byte(ByteLoads.LD_C), "LD C,n", 8))
                              (0x16uy, (Byte(ByteLoads.LD_D), "LD D,n", 8))
                              (0x60uy, (Register(ByteLoads.LD_H, (fun cpu -> cpu.B)), "LD H,B", 4))
+                             (0xE2uy, (Void(ByteLoads.LD_FF00_C_A), "LD (C),A", 8))
                              (0x66uy, (Void(ByteLoads.LD_H_HL), "LD H, (HL)", 8))
-                             (0x32uy, (Void(ByteLoads.LD_HLD), "LD (HLD),A", 8))
+                             (0x32uy, (Void(ByteLoads.LD_HLD_A), "LD (HLD),A", 8))
+                             (0x2Auy, (Void(ByteLoads.LD_A_HLI), "LDI A,(HL)", 8))
                              (0xE0uy, (Byte(ByteLoads.LD_n_A), "LDH (n),A", 12))
                              (0xF0uy, (Byte(ByteLoads.LD_A_n), "LDH A,(n)", 12))
                              (0x36uy, (Byte(ByteLoads.LD_HL_n), "LD (HL), n", 12))
@@ -267,12 +299,14 @@ module SBOpcodes =
 
                              (0xC3uy, (Short(Jump.JP), "JP NN", 16))
                              (0x20uy, (Byte(Jump.JR_NZ), "JR NZ", 8))
+                             (0x30uy, (Byte(Jump.JR_NC), "JR NC", 8))
                              (0xFFuy, (VoidExtra(Jump.RST, 0x38), "RST 38H", 16))
 
                              (0xCDuy, (Short(Calls.CALL), "CALL nn", 12))
                              (0xCCuy, (Short(Calls.CALL_Z), "CALL Z,nn", 12))
 
-                             (0x21uy, (Short(ShortALU.LD_HL), "LD_HL", 12))
+                             (0x21uy, (Short(ShortALU.LD_HL), "LD HL,nn", 12))
+                             (0x31uy, (Short(ShortALU.LD_SP), "LD SP,nn", 12))
 
                              (0xF3uy, (Void(Misc.DI), "Misc", 4))
 

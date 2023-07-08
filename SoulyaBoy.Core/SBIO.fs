@@ -14,7 +14,7 @@ module SBIO =
          let! mb = SB.Get
 
          let access = match address with
-                        | (address: uint16) when 0xffffus <= address -> Some(IE)
+                        | (address: uint16) when 0xffffus = address -> Some(IE)
                         | (address: uint16) when 0xff80us <= address && address <= 0xfffeus -> Some(Array(mb.MMU.HRAM, (address - 0xff80us)))
                         | (address: uint16) when address = 0xFF44us -> Some(LY)
                         | (address: uint16) when 0xff00us <= address && address <= 0xff7fus -> Some(Array(mb.MMU.IO, (address - 0xff00us)))
@@ -48,7 +48,7 @@ module SBIO =
         let! mb = SB.Get
 
         let mmb = match access with
-                    | Array(arr,adr) -> arr[int adr] <- value; mb
+                    | Array(arr, adr) -> arr[int adr] <- value; mb
                     | IE -> { mb with CPU = { mb.CPU with IE = value }}
                     | LY -> { mb with GPU = { mb.GPU with LY = value }}
 
