@@ -62,8 +62,6 @@ module internal SBExecutor =
         let! instruction = RetrieveOpcodeInstruction opcode
         let! (operation, _, pcd, cycles) = ResolveOperation instruction
         
-        //printf $"{name} \n"
-
         do! IncrementPC pcd
         do! operation
         do! handleInterruptState cycles
