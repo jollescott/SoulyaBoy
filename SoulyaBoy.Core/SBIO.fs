@@ -26,16 +26,16 @@ module SBIO =
                         | (address: uint16) when 0x0000us <= address && address <= 0x7fffus -> Some(Array(mb.MMU.ROM, address))
                         | _ -> None
 
-         return access
+         if access.IsNone then return! SB.Panic $"{address} does not match any memory locations" else return access.Value         
     }
 
     let private ReadIOAccess access = sb {
         let! mb = SB.Get
 
         return match access with
-        | Array (arr ,adr) -> Some arr[int adr]
-        | IE -> Some mb.CPU.IE
-        | LY -> Some mb.GPU.LY 
+                | Array (arr ,adr) -> arr[int adr]
+                | IE -> mb.CPU.IE
+                | LY -> mb.GPU.LY 
     }     
 
     let ReadByte address = sb {
@@ -47,9 +47,9 @@ module SBIO =
         let! mb = SB.Get
 
         let mmb = match access with
-                | Array(arr,adr) -> arr[int adr] <- value; mb
-                | IE -> { mb with CPU = { mb.CPU with IE = value }}
-                | LY -> { mb with GPU = { mb.GPU with LY = value}}
+                    | Array(arr,adr) -> arr[int adr] <- value; mb
+                    | IE -> { mb with CPU = { mb.CPU with IE = value }}
+                    | LY -> { mb with GPU = { mb.GPU with LY = value }}
 
         do! SB.Put mmb
     }
@@ -65,8 +65,7 @@ module SBIO =
         let! low = ReadByte address
         let! high = ReadByte (address + 1us)
 
-        let short = SBUtils.toShort high low
-        return Some short
+        return SBUtils.toShort high low
     }
 
     let WriteShort address value = sb {

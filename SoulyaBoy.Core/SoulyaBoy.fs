@@ -4,9 +4,11 @@ module SoulyaBoy =
     let CreateSoulyaBoy rom = SBMbFactory.CreateSBMb(rom)
 
     let Run mb =
-        let rec loop mb cycle =
-            match SBExecutor.Execute mb cycle with
-            | Some (cycles, mutated) -> loop mutated (cycle + cycles)
-            | None -> ()
+        let rec loop mb =
+            let result = SB.Run SBExecutor.Execute mb
 
-        loop mb 0
+            match result with 
+            | Ok(r, mmb) -> loop mmb 
+            | Error(e) -> printf $"{e}"
+
+        loop mb 
