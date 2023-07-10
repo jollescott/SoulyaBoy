@@ -44,6 +44,8 @@ module internal SBOpcodes =
     let SetIf flag condition =
         if condition then Set flag else Reset flag
 
+    let BitCarryCheck R r n = ((int R &&& (0b1 <<< n)) = (int r &&& (0b1 <<< 1)))
+
     module ByteLoads =
 
         let LD_n mut = sb {
@@ -65,12 +67,16 @@ module internal SBOpcodes =
             do! SBIO.WriteByte address mb.CPU.A
         }
 
-        let LD_H_HL () = sb {
+        let LD_R_HL setR = sb {
             let! mb = SB.Get
             let address = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let! h = SBIO.ReadByte address
-            do! SB.Put { mb with CPU = { mb.CPU with H = h } }
+            let! r = SBIO.ReadByte address
+            do! SB.Put { mb with CPU = setR mb r }
         }
+
+        let LD_D_HL () = LD_R_HL (fun mb d -> { mb.CPU with D = d })
+        let LD_E_HL () = LD_R_HL (fun mb e -> { mb.CPU with E = e })
+        let LD_H_HL () = LD_R_HL (fun mb h -> { mb.CPU with H = h })
 
         let LD_HLD_A () = sb {
             // TODO: Solve state changes within opcode
@@ -148,6 +154,13 @@ module internal SBOpcodes =
             do! SB.Put { mb with CPU = { mb.CPU with SP = sp }} 
             do! SBIO.WriteShort sp nn
         } 
+
+        let PUSH_DE () = sb {
+            let! mb = SB.Get
+
+            let de = SBUtils.toShort mb.CPU.D mb.CPU.E
+            do! PUSH de
+        }
 
         let POP = sb {
             let! mb = SB.Get
@@ -332,14 +345,43 @@ module internal SBOpcodes =
         }
 
     module ShortALU =
-        let DEC_BC () = sb {
+        let ADD_HL nn = sb {
+            let! mb = SB.Get
+
+            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+            let r = hl + nn
+            let (h,l) = SBUtils.toBytes r
+
+            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l }}
+
+            do! Reset Flags.N
+            do! SetIf Flags.H (BitCarryCheck hl r 11)
+            do! SetIf Flags.C (BitCarryCheck hl r 15)
+        }
+
+        let ADD_HL_DE () = sb {
+            let! mb = SB.Get
+
+            let de = SBUtils.toShort mb.CPU.D mb.CPU.E
+            do! ADD_HL de
+        }
+
+        let INC_DEC_nn op get set = sb {
             let! mb = SB.Get
             
-            let bc = SBUtils.toShort mb.CPU.B mb.CPU.C
-            let (b,c) = SBUtils.toBytes (bc - 1us)
+            let nn = get mb ||> SBUtils.toShort 
+            let (h,l) = SBUtils.toBytes (op nn 1us)
 
-            do! SB.Put { mb with CPU = { mb.CPU with B = b; C = c }}
-        } 
+            do! SB.Put { mb with CPU = set mb h l }
+        }
+
+        let INC_nn = INC_DEC_nn (+)
+
+        let INC_HL () = INC_nn (fun mb -> (mb.CPU.H, mb.CPU.L)) (fun mb h l -> { mb.CPU with H = h; L = l })
+
+        let DEC_nn = INC_DEC_nn (-)
+
+        let DEC_BC () = DEC_nn (fun mb -> (mb.CPU.B, mb.CPU.C)) (fun mb h l -> { mb.CPU with B = h; C = l })
 
     module Control =
         let NOP () = SB.Return ()
@@ -410,7 +452,9 @@ module internal SBOpcodes =
                              (0x5Fuy, (Register(ByteLoads.LD_E, (fun cpu -> cpu.A)), "LD E,A", 4))
                              (0x60uy, (Register(ByteLoads.LD_H, (fun cpu -> cpu.B)), "LD H,B", 4))
                              (0xE2uy, (Void(ByteLoads.LD_FF00_C_A), "LD (C),A", 8))
-                             (0x66uy, (Void(ByteLoads.LD_H_HL), "LD H, (HL)", 8))
+                             (0x56uy, (Void(ByteLoads.LD_D_HL), "LD D,(HL)", 8))
+                             (0x5Euy, (Void(ByteLoads.LD_E_HL), "LD E,(HL)", 8))
+                             (0x66uy, (Void(ByteLoads.LD_H_HL), "LD H,(HL)", 8))
                              (0x32uy, (Void(ByteLoads.LD_HLD_A), "LD (HLD),A", 8))
                              (0x2Auy, (Void(ByteLoads.LD_A_HLI), "LDI A,(HL)", 8))
                              (0xE0uy, (Byte(ByteLoads.LD_n_A), "LDH (n),A", 12))
@@ -448,8 +492,11 @@ module internal SBOpcodes =
                              (0x01uy, (Short(ShortLoads.LD_BC), "LD BC,nn", 12))
                              (0x21uy, (Short(ShortLoads.LD_HL), "LD HL,nn", 12))
                              (0x31uy, (Short(ShortLoads.LD_SP), "LD SP,nn", 12))
-                             (0xE1uy, (Void(ShortLoads.POP_HL), "POP HL", 12))
+                             (0xD5uy, (Void(ShortLoads.PUSH_DE),"PUSH DE",  16))
+                             (0xE1uy, (Void(ShortLoads.POP_HL), "POP HL",   12))
 
+                             (0x19uy, (Void(ShortALU.ADD_HL_DE), "ADD HL,DE", 8))
+                             (0x23uy, (Void(ShortALU.INC_HL), "INC HL", 8))
                              (0x0Buy, (Void(ShortALU.DEC_BC), "DEC BC", 8))
 
                              (0x2Fuy, (Void(Misc.CPL), "CPL", 4))
