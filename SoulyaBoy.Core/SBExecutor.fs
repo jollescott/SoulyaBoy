@@ -22,16 +22,28 @@ module internal SBExecutor =
         do! SB.Put handledMB
     }
 
+    let private RetrieveOpcodeInstruction opcode (instructions: SBInstructionTable) = sb {
+        if instructions.ContainsKey(opcode) then
+            return instructions[opcode]
+        else 
+            return! SB.Panic $"Instruction %X{opcode} is not implemented \n"
+    }
+
     let private ReadOpcode = sb {
         let! mb = SB.Get
         return! SBIO.ReadByte mb.CPU.PC
     }
 
-    let private RetrieveOpcodeInstruction opcode = sb {
-        if SBOpcodes.INSTRUCTIONS.ContainsKey(opcode) then
-            return SBOpcodes.INSTRUCTIONS[opcode]
+    let private FetchInstruction = sb {
+        let! opcode = ReadOpcode
+        let cbExtension = opcode = 0xCBuy
+
+        if cbExtension then
+            do! IncrementPC 0us
+            let! exOpcode = ReadOpcode
+            return! RetrieveOpcodeInstruction exOpcode SBOpcodes.CB_EXTENSIONS
         else 
-            return! SB.Panic $"Instruction %X{opcode} is not implemented \n"
+            return! RetrieveOpcodeInstruction opcode SBOpcodes.INSTRUCTIONS
     } 
 
     let private ResolveOperation instruction = sb {
@@ -58,8 +70,7 @@ module internal SBExecutor =
 
     let internal Execute = sb {
         do! SBGraphics.Process
-        let! opcode = ReadOpcode
-        let! instruction = RetrieveOpcodeInstruction opcode
+        let! instruction = FetchInstruction
         let! (operation, _, pcd, cycles) = ResolveOperation instruction
         
         do! IncrementPC pcd
