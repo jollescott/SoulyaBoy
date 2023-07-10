@@ -323,6 +323,24 @@ module internal SBOpcodes =
         let NOP () = SB.Return ()
 
     module Misc =
+
+        let SWAP_A () = sb {
+            let! mb = SB.Get
+            let a = mb.CPU.A
+
+            let lNibble = a &&& 0b1111uy
+            let hNibble = a >>> 4
+
+            let s = (lNibble <<< 4) ||| hNibble
+
+            do! SB.Put { mb with CPU = { mb.CPU with A = s }}
+
+            do! SetIf Flags.Z (s = 0uy)
+            do! Reset Flags.N
+            do! Reset Flags.H
+            do! Reset Flags.C
+        }
+
         let CPL () = sb {
             let! mb = SB.Get
             let a = ~~~mb.CPU.A
@@ -407,3 +425,6 @@ module internal SBOpcodes =
                              (0xFBuy, (Void(Misc.IE), "IE", 4))
 
                              (0x1Fuy, (Void(RotatesShifts.RRA), "RRA", 4)) ]
+
+    let internal CB_EXTENSIONS = 
+        SBInstructionTable [ (0x37uy, (Void(Misc.SWAP_A), "SWAP A", 8))]
