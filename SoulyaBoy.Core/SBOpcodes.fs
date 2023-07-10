@@ -186,6 +186,12 @@ module internal SBOpcodes =
             do! SB.Put { mb with CPU = { mb.CPU with PC = nn}}
         }
 
+        let JP_HL () = sb {
+            let! mb = SB.Get
+            let address = SBUtils.toShort mb.CPU.H mb.CPU.L
+            do! JP address
+        }
+
         let JR_N flag n = sb {
             let! mb = SB.Get
 
@@ -479,6 +485,7 @@ module internal SBOpcodes =
                              (0x0uy, (Const(Control.NOP), "NOP", 4))
 
                              (0xC3uy, (Short(Jump.JP), "JP NN", 16))
+                             (0xE9uy, (Void(Jump.JP_HL), "JP (HL)", 4))
                              (0x20uy, (Byte(Jump.JR_NZ), "JR NZ", 8))
                              (0x30uy, (Byte(Jump.JR_NC), "JR NC", 8))
                              (0xEFuy, (VoidExtra(Jump.RST, 0x28), "RST 28H", 16))
