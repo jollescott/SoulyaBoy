@@ -192,15 +192,19 @@ module internal SBOpcodes =
             do! JP address
         }
 
-        let JR_N flag n = sb {
+        let JR_OP op flag n = sb {
             let! mb = SB.Get
 
-            if mb.CPU.F &&& byte flag = 0uy then
+            if op (mb.CPU.F &&& byte flag) 0uy then
                 let address = uint16 (int mb.CPU.PC + int (sbyte n))
                 return! JP address
         }
 
+        let JR_N = JR_OP (<>)
+        let JR = JR_OP (=)
+
         let JR_NZ = JR_N Flags.Z
+        let JR_Z = JR Flags.Z
         let JR_NC = JR_N Flags.C
 
         let RST ((), arg) = sb {
@@ -210,6 +214,19 @@ module internal SBOpcodes =
             do! ShortLoads.PUSH mb.CPU.PC
             do! JP address
         }
+
+    module Bit = 
+        let RES get set b = sb {            
+            let! mb = SB.Get
+
+            let r = get mb.CPU
+            let x = r &&& ~~~(1uy <<< int b)
+
+            do! SB.Put { mb with CPU = set mb.CPU x }
+        }
+
+        let RES_A = RES (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x } )
+            
 
     module Calls =
         let CALL nn = sb {
@@ -372,6 +389,11 @@ module internal SBOpcodes =
             do! ADD_HL de
         }
 
+        let ADD_HL_SP () = sb {
+            let! mb = SB.Get
+            do! ADD_HL mb.CPU.SP
+        }
+
         let INC_DEC_nn op get set = sb {
             let! mb = SB.Get
             
@@ -382,6 +404,8 @@ module internal SBOpcodes =
         }
 
         let INC_nn = INC_DEC_nn (+)
+
+        let INC_BC () = INC_nn (fun mb -> (mb.CPU.B, mb.CPU.C)) (fun mb b c -> { mb.CPU with B = b; C = c }) 
 
         let INC_HL () = INC_nn (fun mb -> (mb.CPU.H, mb.CPU.L)) (fun mb h l -> { mb.CPU with H = h; L = l })
 
@@ -487,6 +511,7 @@ module internal SBOpcodes =
                              (0xC3uy, (Short(Jump.JP), "JP NN", 16))
                              (0xE9uy, (Void(Jump.JP_HL), "JP (HL)", 4))
                              (0x20uy, (Byte(Jump.JR_NZ), "JR NZ", 8))
+                             (0x28uy, (Byte(Jump.JR_Z), "JR N", 8))
                              (0x30uy, (Byte(Jump.JR_NC), "JR NC", 8))
                              (0xEFuy, (VoidExtra(Jump.RST, 0x28), "RST 28H", 16))
                              (0xFFuy, (VoidExtra(Jump.RST, 0x38), "RST 38H", 16))
@@ -503,6 +528,8 @@ module internal SBOpcodes =
                              (0xE1uy, (Void(ShortLoads.POP_HL), "POP HL",   12))
 
                              (0x19uy, (Void(ShortALU.ADD_HL_DE), "ADD HL,DE", 8))
+                             (0x39uy, (Void(ShortALU.ADD_HL_SP), "ADD HL,SP", 8))
+                             (0x03uy, (Void(ShortALU.INC_BC), "INC BC", 8))
                              (0x23uy, (Void(ShortALU.INC_HL), "INC HL", 8))
                              (0x0Buy, (Void(ShortALU.DEC_BC), "DEC BC", 8))
 
@@ -513,4 +540,5 @@ module internal SBOpcodes =
                              (0x1Fuy, (Void(RotatesShifts.RRA), "RRA", 4)) ]
 
     let internal CB_EXTENSIONS = 
-        SBInstructionTable [ (0x37uy, (Void(Misc.SWAP_A), "SWAP A", 8))]
+        SBInstructionTable [ (0x87uy, (Byte(Bit.RES_A), "RES b,A", 8))
+                             (0x37uy, (Void(Misc.SWAP_A), "SWAP A", 8))]
