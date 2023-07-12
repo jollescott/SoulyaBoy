@@ -9,8 +9,7 @@ type SBMmu =
       OAM: array<byte>
       UNUSABLE: array<byte>
       IO: array<byte>
-      HRAM: array<byte>
-      IE: array<byte> }
+      HRAM: array<byte> }
 
 
 module SBMmuFactory =
@@ -22,5 +21,4 @@ module SBMmuFactory =
           OAM = Array.zeroCreate 160
           UNUSABLE = Array.zeroCreate 96
           IO = Array.zeroCreate 128
-          HRAM = Array.zeroCreate 128
-          IE = Array.zeroCreate 1 }
+          HRAM = Array.zeroCreate 128 }
