@@ -23,7 +23,9 @@ type SBCpu =
 
       SP: uint16
       PC: uint16
-      IE: byte;
+      IE: byte
+
+      Stop: bool
 
       Interrupt: SBCpuInterrupt }
 
@@ -44,4 +46,5 @@ module SBCpuFactory =
           PC = 0x100us
           SP = 0xFFFEus
           IE = 0uy
+          Stop = false
           Interrupt = Enabled }
