@@ -113,6 +113,15 @@ module internal SBOpcodes =
         let LD_H n = LD_n (fun mb -> { mb.CPU with H = n })
         let LD_L n = LD_n (fun mb -> { mb.CPU with L = n })
 
+        let LD_A_DE () = sb {
+            let! mb = SB.Get
+
+            let address = SBUtils.toShort mb.CPU.D mb.CPU.E
+            let! a = SBIO.ReadByte address
+
+            do! LD_A a
+        }
+
         let LD_FF00_C_A () = sb {
             let! mb = SB.Get
             let address = 0xFF00us + uint16 mb.CPU.C
@@ -160,6 +169,13 @@ module internal SBOpcodes =
             let! mb = SB.Get
             do! SBIO.WriteByte nn mb.CPU.A
         } 
+
+        let LD_DE_A () = sb {
+            let! mb = SB.Get
+            let address = SBUtils.toShort mb.CPU.D mb.CPU.E
+            do! LD_nn_A address
+        }
+
 
         let LD_HL_A () = sb {
             let! mb = SB.Get
@@ -261,21 +277,29 @@ module internal SBOpcodes =
             do! JP address
         }
 
+        let JR n = sb {
+            let! mb = SB.Get
+
+            let address = uint16 (int mb.CPU.PC + int (sbyte n))
+            return! JP address
+        }
+
         let JR_OP op flag n = sb {
             let! mb = SB.Get
 
             if op (mb.CPU.F &&& byte flag) 0uy then
-                let address = uint16 (int mb.CPU.PC + int (sbyte n))
-                return! JP address
+                return! JR n
         }
 
-        let JR_N = JR_OP (<>)
-        let JR = JR_OP (=)
+        // Reset
+        let JR_R = JR_OP (<>)
+        // Set
+        let JR_S = JR_OP (=)
 
-        let JR_NZ = JR_N Flags.Z
-        let JR_Z = JR Flags.Z
-        let JR_NC = JR_N Flags.C
-        let JR_C = JR Flags.C
+        let JR_NZ = JR_R Flags.Z
+        let JR_Z = JR_S Flags.Z
+        let JR_NC = JR_R Flags.C
+        let JR_C = JR_S Flags.C
 
         let RST ((), arg) = sb {
             let! mb = SB.Get
@@ -337,6 +361,7 @@ module internal SBOpcodes =
         }
 
         let INC_C () = INC_n (fun cpu -> cpu.C) (fun cpu c -> { cpu with C = c })
+        let INC_D () = INC_n (fun cpu -> cpu.D) (fun cpu d -> { cpu with D = d })
         let INC_E () = INC_n (fun cpu -> cpu.E) (fun cpu e -> { cpu with E = e })
         let INC_H () = INC_n (fun cpu -> cpu.H) (fun cpu h -> { cpu with H = h })
         let INC_L () = INC_n (fun cpu -> cpu.L) (fun cpu l -> { cpu with L = l })
@@ -491,6 +516,11 @@ module internal SBOpcodes =
             do! Set Flags.H
         }
 
+        let STOP () = sb {
+            let! mb = SB.Get
+            do! SB.Put { mb with CPU = { mb.CPU with Stop = true }}
+        }
+
         let DI () = sb {
             let! mb = SB.Get
             do! SB.Put { mb with CPU = { mb.CPU with Interrupt = Disable } }
@@ -520,6 +550,7 @@ module internal SBOpcodes =
         SBInstructionTable [ (0x3Euy, (Byte(ByteLoads.LD_A), "LD A,n", 8))
                              (0x78uy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.B)), "LD A,B", 4))
                              (0x79uy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.C)), "LD A,C", 4))
+                             (0x1Auy, (Void(ByteLoads.LD_A_DE), "LD A,(DE)", 8))
                              (0x06uy, (Byte(ByteLoads.LD_B), "LD B,n", 8))
                              (0x47uy, (Register(ByteLoads.LD_B, (fun cpu -> cpu.A)), "LD B,A", 4))
                              (0x40uy, (Register(ByteLoads.LD_B, (fun cpu -> cpu.B)), "LD B,B", 4))
@@ -540,11 +571,13 @@ module internal SBOpcodes =
                              (0x22uy, (Void(ByteLoads.LD_HLI_A), "LDI (HL),A", 8))
                              (0xE0uy, (Byte(ByteLoads.LD_n_A), "LDH (n),A", 12))
                              (0xF0uy, (Byte(ByteLoads.LD_A_n), "LDH A,(n)", 12))
+                             (0x12uy, (Void(ByteLoads.LD_DE_A), "LD (DE), A", 8))
                              (0x36uy, (Byte(ByteLoads.LD_HL_n), "LD (HL), n", 12))
                              (0x77uy, (Void(ByteLoads.LD_HL_A), "LD (HL), A", 8))
                              (0xEAuy, (Short(ByteLoads.LD_nn_A), "LD (nn),A", 16))
 
                              (0x0Cuy, (Void(ByteALU.INC_C), "INC C", 4))
+                             (0x14uy, (Void(ByteALU.INC_D), "INC D", 4))
                              (0x1Cuy, (Void(ByteALU.INC_E), "INC E", 4))
                              (0x24uy, (Void(ByteALU.INC_H), "INC H", 4))
                              (0x2Cuy, (Void(ByteALU.INC_L), "INC L", 4))
@@ -567,6 +600,7 @@ module internal SBOpcodes =
 
                              (0xC3uy, (Short(Jump.JP), "JP NN", 16))
                              (0xE9uy, (Void(Jump.JP_HL), "JP (HL)", 4))
+                             (0x18uy, (Byte(Jump.JR), "JR", 8))
                              (0x20uy, (Byte(Jump.JR_NZ), "JR NZ", 8))
                              (0x28uy, (Byte(Jump.JR_Z), "JR N", 8))
                              (0x30uy, (Byte(Jump.JR_NC), "JR NC", 8))
@@ -595,6 +629,7 @@ module internal SBOpcodes =
 
                              (0x37uy, (Void(Misc.SCF), "SCF", 4))
                              (0x2Fuy, (Void(Misc.CPL), "CPL", 4))
+                             (0x10uy, (Void(Misc.STOP), "STOP", 4))
                              (0xF3uy, (Void(Misc.DI), "DI", 4))
                              (0xFBuy, (Void(Misc.IE), "IE", 4))
 

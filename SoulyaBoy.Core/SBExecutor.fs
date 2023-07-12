@@ -67,13 +67,20 @@ module internal SBExecutor =
         return result
     }
 
+    let GetStop = sb {
+        let! mb = SB.Get
+        return mb.CPU.Stop
+    }
 
     let internal Execute = sb {
-        do! SBGraphics.Process
-        let! instruction = FetchInstruction
-        let! (operation, _, pcd, cycles) = ResolveOperation instruction
+        let! stop = GetStop
+
+        if not stop then 
+            do! SBGraphics.Process
+            let! instruction = FetchInstruction
+            let! (operation, _, pcd, cycles) = ResolveOperation instruction
         
-        do! IncrementPC pcd
-        do! operation
-        do! handleInterruptState cycles
+            do! IncrementPC pcd
+            do! operation
+            do! handleInterruptState cycles
     }
