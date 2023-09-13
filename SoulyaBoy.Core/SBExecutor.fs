@@ -76,7 +76,7 @@ module internal SBExecutor =
         let! stop = GetStop
 
         if not stop then 
-            do! SBGraphics.Process
+            let! tileData = SBGraphics.Process
             let! instruction = FetchInstruction
             let! (operation, _, pcd, cycles) = ResolveOperation instruction
         

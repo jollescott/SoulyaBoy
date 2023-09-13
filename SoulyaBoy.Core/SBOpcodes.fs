@@ -518,6 +518,7 @@ module internal SBOpcodes =
 
         let STOP () = sb {
             let! mb = SB.Get
+            printf "Stopped!"
             do! SB.Put { mb with CPU = { mb.CPU with Stop = true }}
         }
 
