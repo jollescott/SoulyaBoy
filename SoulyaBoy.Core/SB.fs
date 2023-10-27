@@ -33,6 +33,12 @@ module SB =
 
         SB doBind
 
+    let Combine a b = 
+        a |> Bind (fun () -> b)
+
+    let Delay f = 
+        f()
+
     let Get = SB(fun mb -> Ok(mb, mb))
 
     let Put mmb = SB(fun _ -> Ok((), mmb))
@@ -42,3 +48,5 @@ type SBBuilder() =
     member _.Return(x) = SB.Return x
     member _.ReturnFrom(x) = x
     member _.Bind(x,f) = SB.Bind f x
+    member _.Combine(a,b) = SB.Combine a b
+    member _.Delay(f) = SB.Delay f
