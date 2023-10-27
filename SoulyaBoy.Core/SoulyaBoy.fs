@@ -2,12 +2,12 @@
 
 module SoulyaBoy =
     type IPixelPipe =
-        abstract Execute : byte -> unit
+        abstract DrawPixel : int -> int -> byte -> unit
 
     let CreateSoulyaBoy rom = SBMbFactory.CreateSBMb(rom)
 
     let Run mb (pixelPipe: IPixelPipe) =
-        let result = SB.Run (SBExecutor.Run pixelPipe.Execute) mb
+        let result = SB.Run (SBExecutor.Run pixelPipe.DrawPixel) mb
 
         match result with 
         | Ok(r, mmb) -> Some mmb
