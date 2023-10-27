@@ -72,15 +72,17 @@ module internal SBExecutor =
         return mb.CPU.Stop
     }
 
-    let internal Execute = sb {
+    let internal Run pixelPipe = sb {
         let! stop = GetStop
 
         if not stop then 
-            do! SBGraphics.Process
+            do! SBGraphics.Process pixelPipe
             let! instruction = FetchInstruction
             let! (operation, _, pcd, cycles) = ResolveOperation instruction
         
             do! IncrementPC pcd
             do! operation
             do! handleInterruptState cycles
+
+        return! SB.Get
     }
