@@ -60,6 +60,11 @@ public class Program
         }
     }
 
+    private static void Close()
+    {
+        _renderer?.Close();
+    }
+
     public static void Main(string[] args)
     {
         var options = WindowOptions.Default with
@@ -73,7 +78,9 @@ public class Program
         _window.Load += Load;
         _window.Render += Render;
         _window.Update += Update;
+        _window.Closing += Close;
 
         _window.Run();
+        _window.Dispose();
     }
 }
