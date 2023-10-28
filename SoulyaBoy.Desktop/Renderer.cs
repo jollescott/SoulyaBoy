@@ -1,5 +1,6 @@
 ﻿using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+using System.Diagnostics;
 using System.Drawing;
 
 namespace SoulyaBoy.Desktop
@@ -12,13 +13,16 @@ namespace SoulyaBoy.Desktop
         private readonly uint _vbo;
         private readonly uint _ebo;
         private readonly uint _shaderProgram;
+        private readonly uint _screenTexture;
+
+        private readonly Random _random = new Random();
 
         private readonly float[] QUAD_VERTICES =
         {
-             1.0f,  1.0f, 0.0f,
-             1.0f, -1.0f, 0.0f,
-            -1.0f, -1.0f, 0.0f,
-            -1.0f,  1.0f, 0.0f
+             1.0f,  1.0f, 0.0f,     1.0f, 1.0f,
+             1.0f, -1.0f, 0.0f,     1.0f, 0.0f,
+            -1.0f, -1.0f, 0.0f,     0.0f, 0.0f,
+            -1.0f,  1.0f, 0.0f,     0.0f, 1.0f
         };
 
         private readonly uint[] INDICES =
@@ -27,24 +31,34 @@ namespace SoulyaBoy.Desktop
             1u, 2u, 3u
         };
 
+        private readonly uint[] SCREEN = new uint[256 * 256];
+
         private const string VERTEX_SHADER_SOURCE = @"
         #version 330 core
 
         layout (location = 0) in vec3 aPosition;
+        layout (location = 1) in vec2 vertexUV;
+
+        out vec2 uv;
 
         void main()
         {
             gl_Position = vec4(aPosition, 1.0);
+            uv = vertexUV;
         }";
 
         private const string FRAGMENT_SHADER_SOURCE = @"
         #version 330 core
 
-        out vec4 out_color;
+        in vec2 uv;
+
+        out vec3 color;
+
+        uniform sampler2D textureSampler;
 
         void main()
         {
-            out_color = vec4(1.0, 0.5, 0.2, 1.0);
+            color = vec3(texture(textureSampler, uv).r);
         }";
 
         public unsafe Renderer(IWindow? window)
@@ -116,14 +130,28 @@ namespace SoulyaBoy.Desktop
 
             #endregion
 
-            const uint positionLoc = 0;
-            _gl.EnableVertexAttribArray(positionLoc);
-            _gl.VertexAttribPointer(positionLoc, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), (void*)0);
+            #region Texture
+
+            _screenTexture = _gl.GenTexture();
+            _gl.BindTexture(GLEnum.Texture2D, _screenTexture);
+            _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
+            _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
+            _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+            _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
+
+            #endregion
+
+            _gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), (void*)0);
+            _gl.EnableVertexAttribArray(0);
+
+            _gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+            _gl.EnableVertexAttribArray(1);
 
             #region Cleanup
             _gl.BindVertexArray(0);
             _gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
             _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
+            _gl.BindTexture(GLEnum.Texture2D, 0);
             #endregion
         }
 
@@ -134,17 +162,29 @@ namespace SoulyaBoy.Desktop
 
             _gl.BindVertexArray(_vao);
             _gl.UseProgram(_shaderProgram);
+            _gl.BindTexture(GLEnum.Texture2D, _screenTexture);
+
+            fixed (uint* tex = SCREEN)
+            {
+                _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Red, 256, 256, 0, GLEnum.Red, GLEnum.Byte, tex);
+            }
+
             _gl.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, (void*)0);
+
+            _gl.BindVertexArray(0);
+            _gl.UseProgram(0);
+            _gl.BindTexture(GLEnum.Texture2D, 0);
         } 
 
 
         public void DrawPixel(int px, int py, byte shade)
         {
-            
+            SCREEN[px + py * 256] = shade * 64u;
         }
 
         internal void Close()
         {
+            _gl.DeleteTexture(_screenTexture);
             _gl.DeleteBuffer(_vbo);
             _gl.DeleteBuffer(_ebo);
             _gl.DeleteVertexArray(_vao);
