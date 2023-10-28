@@ -15,33 +15,15 @@ public class Program
     private static SBMb? _sbmb;
     private static Renderer? _renderer;
 
-    private static double _lastUpdatedTime;
-
     private static void Update(double deltaTime)
     {
-        if(_lastUpdatedTime < 1 / CPU_FREQ)
-        {
-            _lastUpdatedTime += deltaTime;
-            return;
-        } else
-        {
-            _lastUpdatedTime = 0;
-        }
-
-        try
-        {
-            // TODO: Redo and replace catch expression.
-            _sbmb = Core.SoulyaBoy.Run(_sbmb, _renderer).Value;
-        } catch (NullReferenceException)
-        {
-            Debug.WriteLine("[Panic] Emulator panicked.");
-            _window?.Close();
-        }
+        _sbmb = Core.SoulyaBoy.Run(_sbmb, _renderer).Value;
     }
 
     private static void Render(double deltaTime)
     {
         _renderer?.Render(deltaTime);
+        _window?.SwapBuffers();
     }
 
     private static void Load()
@@ -70,7 +52,8 @@ public class Program
         var options = WindowOptions.Default with
         {
             Size = new Silk.NET.Maths.Vector2D<int>(800, 600),
-            Title = "SoulyaBoy"
+            Title = "SoulyaBoy",
+            UpdatesPerSecond = CPU_FREQ
         };
 
         _window = Window.Create(options);

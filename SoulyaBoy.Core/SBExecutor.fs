@@ -23,6 +23,8 @@ module internal SBExecutor =
     }
 
     let private RetrieveOpcodeInstruction opcode (instructions: SBInstructionTable) = sb {
+        //printf "Opcode: %X\n" opcode
+
         if instructions.ContainsKey(opcode) then
             return instructions[opcode]
         else 
