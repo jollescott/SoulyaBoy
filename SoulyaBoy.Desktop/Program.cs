@@ -15,9 +15,17 @@ public class Program
     private static SBMb? _sbmb;
     private static Renderer? _renderer;
 
-    private static void Update(double deltaTime)
+    private static bool _running = true;
+
+    private static void EmulatorProc()
     {
-        _sbmb = Core.SoulyaBoy.Run(_sbmb, _renderer).Value;
+        while (_running)
+        {
+            if(_sbmb != null)
+            {
+                _sbmb = Core.SoulyaBoy.Run(_sbmb, _renderer).Value;
+            }
+        }
     }
 
     private static void Render(double deltaTime)
@@ -60,10 +68,15 @@ public class Program
 
         _window.Load += Load;
         _window.Render += Render;
-        _window.Update += Update;
         _window.Closing += Close;
+
+        var emulatorThread = new Thread(new ThreadStart(EmulatorProc));
+        emulatorThread.Start();
 
         _window.Run();
         _window.Dispose();
+
+        _running = false;
+        emulatorThread.Join();
     }
 }
