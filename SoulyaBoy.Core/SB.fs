@@ -23,10 +23,10 @@ module SB =
 
         SB doBind
 
-    let Combine a _ = 
-        a
+    let Combine a b = 
+        a |> Bind (fun ()-> b)
 
-    let Delay f = Bind f (Return ())
+    let Delay f = f()
 
     let rec internal While cond f = 
         if cond() then f() |> Bind (fun _ -> While cond f)
