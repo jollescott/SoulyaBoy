@@ -15,8 +15,6 @@ namespace SoulyaBoy.Desktop
         private readonly uint _shaderProgram;
         private readonly uint _screenTexture;
 
-        private readonly Random _random = new Random();
-
         private readonly float[] QUAD_VERTICES =
         {
              1.0f,  1.0f, 0.0f,     1.0f, 1.0f,
@@ -166,7 +164,7 @@ namespace SoulyaBoy.Desktop
 
             fixed (uint* tex = SCREEN)
             {
-                _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Red, 256, 256, 0, GLEnum.Red, GLEnum.Byte, tex);
+                _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Red, 256, 256, 0, GLEnum.Red, GLEnum.UnsignedByte, tex);
             }
 
             _gl.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, (void*)0);

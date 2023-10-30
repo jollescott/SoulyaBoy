@@ -9,8 +9,8 @@ public class Program
     /// <summary>
     /// The CPU frequency (Hz) of the original Gameboy.
     /// </summary>
-    private static readonly double CPU_FREQ = 4194304; 
-
+    private static readonly double CPU_FREQ = 4194304;
+    private static Thread? _emulatorThread;
     private static IWindow? _window;
     private static SBMb? _sbmb;
     private static Renderer? _renderer;
@@ -48,10 +48,16 @@ public class Program
             Debug.WriteLine("[Program] could not find rom.");
             _window?.Close();
         }
+
+        _emulatorThread = new Thread(new ThreadStart(EmulatorProc));
+        _emulatorThread.Start();
     }
 
     private static void Close()
     {
+        _running = false;
+        _emulatorThread?.Join();
+
         _renderer?.Close();
     }
 
@@ -60,8 +66,7 @@ public class Program
         var options = WindowOptions.Default with
         {
             Size = new Silk.NET.Maths.Vector2D<int>(800, 600),
-            Title = "SoulyaBoy",
-            UpdatesPerSecond = CPU_FREQ
+            Title = "SoulyaBoy"
         };
 
         _window = Window.Create(options);
@@ -70,13 +75,7 @@ public class Program
         _window.Render += Render;
         _window.Closing += Close;
 
-        var emulatorThread = new Thread(new ThreadStart(EmulatorProc));
-        emulatorThread.Start();
-
         _window.Run();
         _window.Dispose();
-
-        _running = false;
-        emulatorThread.Join();
     }
 }
