@@ -16,7 +16,7 @@ module SBGraphics =
         for j in 0..7 do 
             let shade = (row1 >>> j &&& 1uy) ||| ((row2 >>> j &&& 1uy) <<< 1);
             let px = 8 * (int tileIndex % 32) + j
-            let py = 8 * (int tileIndex / 32) + int (uint16 ly % 8us)
+            let py = int ly
             pixelPipe px py shade
     }
 
@@ -29,10 +29,10 @@ module SBGraphics =
         let TILE_MAP_BASE_START = if (mb.GPU.LCDC &&& 0b100uy) = 1uy then 0x9C00us else 0x9800us
         let TILE_MAP_BASE_END = if (mb.GPU.LCDC &&& 0b100uy) = 1uy then 0x9FFFus else 0x9BFFus
 
-        let TILE_MAP_START = TILE_MAP_BASE_START + (uint16 LY / 8us) * 32us
+        let TILE_MAP_START = TILE_MAP_BASE_START + (uint16 LY) * 32us
         let TILE_MAP_END = if(TILE_MAP_BASE_START <= TILE_MAP_BASE_END - 32us) then TILE_MAP_START + 32us else TILE_MAP_BASE_END
 
         for tileMapAddress in TILE_MAP_START..TILE_MAP_END do
             let! tileId = SBIO.ReadByte tileMapAddress
-            do! DrawTile pixelPipe tileId (tileMapAddress - TILE_MAP_START) LY
+            do! DrawTile pixelPipe tileId (tileMapAddress - TILE_MAP_BASE_START) LY
     }

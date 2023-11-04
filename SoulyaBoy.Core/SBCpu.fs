@@ -24,10 +24,11 @@ type SBCpu =
       SP: uint16
       PC: uint16
       IE: byte
+      IF: byte
 
       Stop: bool
 
-      Interrupt: SBCpuInterrupt }
+      IME: SBCpuInterrupt }
 
 module SBCpuFactory =
     let internal CreateCPU =
@@ -46,5 +47,6 @@ module SBCpuFactory =
           PC = 0x100us
           SP = 0xFFFEus
           IE = 0uy
+          IF = 0uy
           Stop = false
-          Interrupt = Enabled }
+          IME = Enabled }

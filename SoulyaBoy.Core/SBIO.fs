@@ -8,6 +8,7 @@ module SBIO =
     type private IOAccess = 
         | Array of array<byte> * uint16
         | IE
+        | IF
         | LY
         | LCDC
 
@@ -16,6 +17,7 @@ module SBIO =
 
          let access = match address with
                         | address when 0xffffus = address -> Some(IE)
+                        | address when 0xff0fus = address -> Some(IF)
                         | address when 0xff80us <= address && address <= 0xfffeus -> Some(Array(mb.MMU.HRAM, (address - 0xff80us)))
                         | address when address = 0xFF44us -> Some(LY)
                         | address when address = 0xFF40us -> Some(LCDC)
@@ -38,6 +40,7 @@ module SBIO =
         return match access with
                 | Array (arr ,adr) -> arr[int adr]
                 | IE -> mb.CPU.IE
+                | IF -> mb.CPU.IF
                 | LY -> mb.GPU.LY 
                 | LCDC -> mb.GPU.LCDC
     }     
@@ -53,6 +56,7 @@ module SBIO =
         let mmb = match access with
                     | Array(arr, adr) -> arr[int adr] <- value; mb
                     | IE -> { mb with CPU = { mb.CPU with IE = value }}
+                    | IF -> { mb with CPU = { mb.CPU with IF = value }}
                     | LY -> { mb with GPU = { mb.GPU with LY = value }}
                     | LCDC -> { mb with GPU = { mb.GPU with LCDC = value }}
 
@@ -61,8 +65,10 @@ module SBIO =
 
 
     let WriteByte address value = sb {
-        let! lookup = IOAccessLookup address
-        do! (WriteIOAccess value lookup)
+        if(address > 0x7FFFus) then
+            // No ROM writing for now!
+            let! lookup = IOAccessLookup address
+            do! (WriteIOAccess value lookup)
     }
 
 
