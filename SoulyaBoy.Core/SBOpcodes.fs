@@ -56,7 +56,7 @@ module internal SBOpcodes =
             do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l }}
 
             do! Reset Flags.N
-            do! SetIf Flags.H (hl &&& 0xFFFus + nn &&& 0xFFFus > 0xFFFus)
+            do! SetIf Flags.H ((hl &&& 0xFFFus) + (nn &&& 0xFFFus) > 0xFFFus)
             do! SetIf Flags.C (r > 0xFFFF)
         }
 
@@ -193,7 +193,7 @@ module internal SBOpcodes =
         let LD_n_A n = sb {
             let! mb = SB.Get
 
-            let address = 0xFF00us + uint16 n
+            let address = 0xFF00us + uint16 n            
             do! SBIO.WriteByte address mb.CPU.A
         }
 
@@ -238,9 +238,10 @@ module internal SBOpcodes =
         let PUSH nn = sb {
             let! mb = SB.Get
 
+            do! SBIO.WriteShort (mb.CPU.SP - 1us) nn
+
             let sp = mb.CPU.SP - 2us            
             do! SB.Put { mb with CPU = { mb.CPU with SP = sp }} 
-            do! SBIO.WriteShort sp nn
         } 
 
         let PUSH_AF () = sb {
@@ -274,9 +275,12 @@ module internal SBOpcodes =
         let POP = sb {
             let! mb = SB.Get
 
+            let! top = SBIO.ReadShort (mb.CPU.SP + 1us) 
+
             let sp = mb.CPU.SP
             do! SB.Put { mb with CPU = { mb.CPU with SP = sp + 2us }}
-            return! SBIO.ReadShort sp 
+
+            return top
         }
 
         let POP_AF () = sb {
@@ -284,7 +288,7 @@ module internal SBOpcodes =
             let (a, f) = SBUtils.toBytes top
 
             let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with A = a; F = f }}
+            do! SB.Put { mb with CPU = { mb.CPU with A = a; F = f &&& 0xF0uy }}
         }
 
         let POP_BC () = sb {
@@ -377,11 +381,12 @@ module internal SBOpcodes =
             do! SB.Put { mb with CPU = set mb.CPU x }
         }
 
-        let RES_A = RES (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x } )
+        let RES_0_A () = RES (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x }) 0uy
             
 
     module Calls =
         let CALL nn = sb {
+            assert (nn <> 0x29A6us)
             let! mb = SB.Get
             do! ShortLoads.PUSH mb.CPU.PC 
             do! Jump.JP nn
@@ -517,7 +522,7 @@ module internal SBOpcodes =
         let DEC_D () = DEC_n (fun cpu -> cpu.D) (fun cpu x -> { cpu with D = x })
         let DEC_E () = DEC_n (fun cpu -> cpu.E) (fun cpu x -> { cpu with E = x })
 
-        let INC_DEC_addr_HL op = sb {
+        let INC_DEC_addr_HL op opFlags = sb {
             let! mb = SB.Get
 
             let addr = SBUtils.toShort mb.CPU.H mb.CPU.L
@@ -525,11 +530,11 @@ module internal SBOpcodes =
             let r = op (int R) 1
 
             do! SBIO.WriteByte addr (byte r)
-            do! DecFlags R r
+            do! opFlags R r
         }
 
-        let INC_addr_HL () = INC_DEC_addr_HL (+)
-        let DEC_addr_HL () = INC_DEC_addr_HL (-)
+        let INC_addr_HL () = INC_DEC_addr_HL (+) IncFlags
+        let DEC_addr_HL () = INC_DEC_addr_HL (-) DecFlags
 
         let ADD_n n = sb {
             let! mb = SB.Get
@@ -539,7 +544,7 @@ module internal SBOpcodes =
 
             do! SetIf Flags.Z (a = 0)
             do! Reset Flags.N
-            do! SetIf Flags.H (int mb.CPU.A &&& 0xF + int n &&& 0xF > 0xF)
+            do! SetIf Flags.H ((int mb.CPU.A &&& 0xF) + (int n &&& 0xF) > 0xF)
             do! SetIf Flags.C (a > 0xFF)
         }
 
@@ -636,7 +641,7 @@ module internal SBOpcodes =
             let! mb = SB.Get
             
             let c: byte = mb.CPU.A &&& 0b1uy
-            let a: byte = (mb.CPU.A >>> 1) ||| (c <<< 8)
+            let a: byte = (mb.CPU.A >>> 1) ||| (c <<< 7)
 
             do! SB.Put { mb with CPU = { mb.CPU with A = a } }
 
@@ -765,5 +770,5 @@ module internal SBOpcodes =
                              (0x1Fuy, (Void(RotatesShifts.RRA), "RRA", 4)) ]
 
     let internal CB_EXTENSIONS = 
-        SBInstructionTable [ (0x87uy, (Byte(Bit.RES_A), "RES b,A", 8))
+        SBInstructionTable [ (0x87uy, (Void(Bit.RES_0_A), "RES 0,A", 8))
                              (0x37uy, (Void(Misc.SWAP_A), "SWAP A", 8))]
