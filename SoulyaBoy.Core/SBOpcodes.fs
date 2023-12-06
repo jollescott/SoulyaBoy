@@ -138,6 +138,8 @@ module internal SBOpcodes =
             do! SB.Put { mb with CPU = setR mb r }
         }
 
+        let LD_A_HL () = LD_R_HL (fun mb a -> { mb.CPU with A = a})
+
         let LD_D_HL () = LD_R_HL (fun mb d -> { mb.CPU with D = d })
         let LD_E_HL () = LD_R_HL (fun mb e -> { mb.CPU with E = e })
         let LD_H_HL () = LD_R_HL (fun mb h -> { mb.CPU with H = h })
@@ -386,7 +388,6 @@ module internal SBOpcodes =
 
     module Calls =
         let CALL nn = sb {
-            assert (nn <> 0x29A6us)
             let! mb = SB.Get
             do! ShortLoads.PUSH mb.CPU.PC 
             do! Jump.JP nn
@@ -675,6 +676,7 @@ module internal SBOpcodes =
                              (0x60uy, (Register(ByteLoads.LD_H, (fun cpu -> cpu.B)), "LD H,B", 4))
                              (0x2Euy, (Byte(ByteLoads.LD_L), "LD L,n", 8))
                              (0xE2uy, (Void(ByteLoads.LD_FF00_C_A), "LD (C),A", 8))
+                             (0x7Euy, (Void(ByteLoads.LD_A_HL), "LD A,(HL)", 8))
                              (0x56uy, (Void(ByteLoads.LD_D_HL), "LD D,(HL)", 8))
                              (0x5Euy, (Void(ByteLoads.LD_E_HL), "LD E,(HL)", 8))
                              (0x66uy, (Void(ByteLoads.LD_H_HL), "LD H,(HL)", 8))
