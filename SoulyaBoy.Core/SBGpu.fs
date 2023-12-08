@@ -1,5 +1,8 @@
 namespace SoulyaBoy.Core
 
+open System.Runtime.CompilerServices
+
+[<Struct; IsReadOnly>]
 type SBGpu = {
     LY: byte
     LCDC: byte

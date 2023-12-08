@@ -1,5 +1,8 @@
 ﻿namespace SoulyaBoy.Core
 
+open System.Runtime.CompilerServices
+
+[<Struct; IsReadOnly>]
 type SBMb = { CPU: SBCpu; MMU: SBMmu; GPU: SBGpu }
 
 module SBMbFactory =

@@ -1,12 +1,14 @@
 ﻿namespace SoulyaBoy.Core
 
+open System.Runtime.CompilerServices
 
 module SBIO =
 
     let sb = new SBBuilder()
 
+    [<Struct; IsReadOnly>]
     type private IOAccess = 
-        | Array of array<byte> * uint16
+        | Array of struct(array<byte> * uint16)
         | IE
         | IF
         | LY

@@ -1,5 +1,7 @@
 ﻿namespace SoulyaBoy.Core
 
+open System.Runtime.CompilerServices
+
 type SBCpuInterrupt =
     | Disabled
     | Disabling
@@ -8,6 +10,7 @@ type SBCpuInterrupt =
     | Enabling
     | Enabled
 
+[<Struct; IsReadOnly>]
 type SBCpu =
     { A: byte
       F: byte

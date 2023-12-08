@@ -32,7 +32,7 @@ module internal SBExecutor =
             do! SB.Put {mb with CPU = { mb.CPU with IF = IF &&& ~~~(1uy<<<i) }}       
 
             do! SBOpcodes.Calls.CALL INTERRUPT_ADDRESSES[i]
-            printf "Executing interrupt at address %X\n" INTERRUPT_ADDRESSES[i]
+            printf $"Executing interrupt at address %X{INTERRUPT_ADDRESSES[i]}\n"
         elif i < 4 then
             do! TryRunInterrupt (i+1) IE IF
     }
@@ -48,9 +48,7 @@ module internal SBExecutor =
             do! TryRunInterrupt 0 IE IF
     }
 
-    let private RetrieveOpcodeInstruction opcode (instructions: SBInstructionTable) = sb {
-        printf "%X\n" opcode
-        
+    let private RetrieveOpcodeInstruction opcode (instructions: SBInstructionTable) = sb {        
         if instructions.ContainsKey(opcode) then
             return instructions[opcode]
         else 
