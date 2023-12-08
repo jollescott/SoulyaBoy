@@ -1,7 +1,8 @@
 ﻿namespace SoulyaBoy.Core
 
-type SBResult<'a> = 'a * SBMb
+type SBResult<'a> = (struct('a * SBMb))
 
+[<Struct>]
 type SB<'a> = 
     SB of (SBMb -> Result<SBResult<'a>, string>)
 
@@ -28,7 +29,7 @@ module SB =
 
     let Delay f = f()
 
-    let rec internal While cond f = 
+    let rec internal While cond f =
         if cond() then f() |> Bind (fun _ -> While cond f)
         else Return ()
 

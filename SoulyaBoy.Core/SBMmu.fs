@@ -1,5 +1,6 @@
 namespace SoulyaBoy.Core
 
+
 type SBMmu =
     { ROM: array<byte>
       // TODO: Switchable banks.
