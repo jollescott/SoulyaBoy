@@ -1,12 +1,13 @@
 ﻿namespace SoulyaBoy.Core
 
+open System
 open System.Runtime.CompilerServices
 
 module SBIO =
 
-    let sb = new SBBuilder()
+    let sb = SBBuilder()
 
-    [<Struct; IsReadOnly>]
+    [<Struct>]
     type private IOAccess = 
         | Array of struct(array<byte> * uint16)
         | IE
@@ -17,34 +18,34 @@ module SBIO =
     let private IOAccessLookup address = sb {
          let! mb = SB.Get
 
-         let access = match address with
-                        | address when 0xffffus = address -> Some(IE)
-                        | address when 0xff0fus = address -> Some(IF)
-                        | address when 0xff80us <= address && address <= 0xfffeus -> Some(Array(mb.MMU.HRAM, (address - 0xff80us)))
-                        | address when address = 0xFF44us -> Some(LY)
-                        | address when address = 0xFF40us -> Some(LCDC)
-                        | address when 0xff00us <= address && address <= 0xff7fus -> Some(Array(mb.MMU.IO, (address - 0xff00us)))
-                        | address when 0xfea0us <= address && address <= 0xfeffus -> Some(Array(mb.MMU.UNUSABLE, (address - 0xfea0us)))
-                        | address when 0xfe00us <= address && address <= 0xfe9fus -> Some(Array(mb.MMU.OAM, (address - 0xfe00us)))
-                        | address when 0xe000us <= address && address <= 0xfdffus -> Some(Array(mb.MMU.WRAM, (address - 0xe000us)))
-                        | address when 0xc000us <= address && address <= 0xdfffus -> Some(Array(mb.MMU.WRAM, (address - 0xc000us)))
-                        | address when 0xa000us <= address && address <= 0xbfffus -> Some(Array(mb.MMU.EXRAM, (address - 0xa000us)))
-                        | address when 0x8000us <= address && address <= 0x9fffus -> Some(Array(mb.MMU.VRAM, (address - 0x8000us)))
-                        | address when 0x0000us <= address && address <= 0x7fffus -> Some(Array(mb.MMU.ROM, address))
-                        | _ -> None
-
-         if access.IsNone then return! SB.Panic $"{address} does not match any memory locations" else return access.Value         
+         return match address with
+                | address when 0xffffus = address -> IE
+                | address when 0xff0fus = address -> IF
+                | address when 0xff80us <= address && address <= 0xfffeus -> Array(mb.MMU.HRAM, (address - 0xff80us))
+                | address when address = 0xFF44us -> LY
+                | address when address = 0xFF40us -> LCDC
+                | address when 0xff00us <= address && address <= 0xff7fus -> Array(mb.MMU.IO, (address - 0xff00us))
+                | address when 0xfea0us <= address && address <= 0xfeffus -> Array(mb.MMU.UNUSABLE, (address - 0xfea0us))
+                | address when 0xfe00us <= address && address <= 0xfe9fus -> Array(mb.MMU.OAM, (address - 0xfe00us))
+                | address when 0xe000us <= address && address <= 0xfdffus -> Array(mb.MMU.WRAM, (address - 0xe000us))
+                | address when 0xc000us <= address && address <= 0xdfffus -> Array(mb.MMU.WRAM, (address - 0xc000us))
+                | address when 0xa000us <= address && address <= 0xbfffus -> Array(mb.MMU.EXRAM, (address - 0xa000us))
+                | address when 0x8000us <= address && address <= 0x9fffus -> Array(mb.MMU.VRAM, (address - 0x8000us))
+                | address when 0x0000us <= address && address <= 0x7fffus -> Array(mb.MMU.ROM, address)
+                | _ -> raise (Exception("Failed to access " + address.ToString()))      
     }
 
     let private ReadIOAccess access = sb {
         let! mb = SB.Get
 
-        return match access with
-                | Array (arr ,adr) -> arr[int adr]
-                | IE -> mb.CPU.IE
-                | IF -> mb.CPU.IF
-                | LY -> mb.GPU.LY 
-                | LCDC -> mb.GPU.LCDC
+        let value = match access with
+                    | Array (arr ,adr) -> arr[int adr]
+                    | IE -> mb.CPU.IE
+                    | IF -> mb.CPU.IF
+                    | LY -> mb.GPU.LY 
+                    | LCDC -> mb.GPU.LCDC
+        
+        return value
     }     
 
     let ReadByte address = sb {
@@ -82,7 +83,7 @@ module SBIO =
     }
 
     let WriteShort address value = sb {
-        let high, low = SBUtils.toBytes value
+        let struct (high, low) = SBUtils.toBytes value
         do! (WriteByte address low)
         do! (WriteByte (address + 1us) high)
     }

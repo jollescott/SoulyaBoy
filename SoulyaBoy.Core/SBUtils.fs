@@ -9,7 +9,7 @@ module SBUtils =
     let internal toBytes short =
         let high = byte (short >>> 8)
         let low = byte (short &&& 0b1111_1111us)
-        (high, low)
+        struct (high, low)
 
     let internal bind f arg =
         match arg with 

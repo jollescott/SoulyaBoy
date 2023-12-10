@@ -35,9 +35,9 @@ type SBCpu =
 
 module SBCpuFactory =
     let internal CreateCPU =
-        let b, c = SBUtils.toBytes 0x0013us
-        let d, e = SBUtils.toBytes 0x00D8us
-        let h, l = SBUtils.toBytes 0x014Dus 
+        let struct (b, c) = SBUtils.toBytes 0x0013us
+        let struct (d, e) = SBUtils.toBytes 0x00D8us
+        let struct (h, l) = SBUtils.toBytes 0x014Dus 
         
         { A = 0x01uy
           F = 0xB0uy

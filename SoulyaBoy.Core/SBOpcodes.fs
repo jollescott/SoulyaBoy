@@ -51,7 +51,7 @@ module internal SBOpcodes =
 
             let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
             let r = int hl + int nn
-            let (h,l) = SBUtils.toBytes (uint16 r)
+            let struct (h,l) = SBUtils.toBytes (uint16 r)
 
             do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l }}
 
@@ -76,7 +76,7 @@ module internal SBOpcodes =
             let! mb = SB.Get
             
             let nn = get mb ||> SBUtils.toShort 
-            let (h,l) = SBUtils.toBytes (op nn 1us)
+            let struct (h,l) = SBUtils.toBytes (op nn 1us)
 
             do! SB.Put { mb with CPU = set mb h l }
         }
@@ -151,7 +151,7 @@ module internal SBOpcodes =
 
             // TODO Move to DEC HL
             let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let h, l = SBUtils.toBytes (hl - 1us)
+            let struct(h, l) = SBUtils.toBytes (hl - 1us)
 
             do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l } }
             do! SBIO.WriteByte hl mb.CPU.A
@@ -162,7 +162,7 @@ module internal SBOpcodes =
 
             //TODO: Move to INC HL
             let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let h, l = SBUtils.toBytes (hl + 1us)
+            let struct(h, l) = SBUtils.toBytes (hl + 1us)
 
             // TODO: Move to LD A,(HL)
             let! a = SBIO.ReadByte hl
@@ -219,7 +219,7 @@ module internal SBOpcodes =
 
         let LD_nn set nn = sb {
             let! mb = SB.Get
-            let (h: byte, l: byte) = SBUtils.toBytes nn
+            let struct (h: byte, l: byte) = SBUtils.toBytes nn
             do! SB.Put { mb with CPU = set mb.CPU h l }
         }
 
@@ -287,7 +287,7 @@ module internal SBOpcodes =
 
         let POP_AF () = sb {
             let! top = POP
-            let (a, f) = SBUtils.toBytes top
+            let struct (a, f) = SBUtils.toBytes top
 
             let! mb = SB.Get
             do! SB.Put { mb with CPU = { mb.CPU with A = a; F = f &&& 0xF0uy }}
@@ -295,7 +295,7 @@ module internal SBOpcodes =
 
         let POP_BC () = sb {
             let! top = POP
-            let (b, c) = SBUtils.toBytes top
+            let struct (b, c) = SBUtils.toBytes top
 
             let! mb = SB.Get
             do! SB.Put { mb with CPU = { mb.CPU with B = b; C = c }}
@@ -303,7 +303,7 @@ module internal SBOpcodes =
 
         let POP_DE () = sb {
             let! top = POP
-            let (d, e) = SBUtils.toBytes top
+            let struct (d, e) = SBUtils.toBytes top
 
             let! mb = SB.Get
             do! SB.Put { mb with CPU = { mb.CPU with D = d; E = e }}
@@ -311,7 +311,7 @@ module internal SBOpcodes =
 
         let POP_HL () = sb {
             let! top = POP
-            let (h, l) = SBUtils.toBytes top
+            let struct (h, l) = SBUtils.toBytes top
             
             let! mb = SB.Get
             do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l }}
@@ -635,7 +635,7 @@ module internal SBOpcodes =
         }
 
     module Control =
-        let NOP () = SB.Return ()
+        let NOP () = sb { () }
 
     module RotatesShifts =
         let RRA () = sb {

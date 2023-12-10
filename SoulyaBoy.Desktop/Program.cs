@@ -21,7 +21,7 @@ public class Program
     {
         while (_running)
         {
-            _sbmb = Core.SoulyaBoy.Run(_sbmb, _renderer).Value;
+            _sbmb = Core.SoulyaBoy.Run(_sbmb, _renderer);
         }
     }
 
