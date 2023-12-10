@@ -1,8 +1,10 @@
 ﻿namespace SoulyaBoy.Core
 
+open System
+
 module internal SBExecutor =
 
-    let private sb = new SBBuilder()
+    let private sb = SBBuilder()
 
     let private INTERRUPT_ADDRESSES = Map([
         (0, 0x0040us)
@@ -48,11 +50,11 @@ module internal SBExecutor =
             do! TryRunInterrupt 0 IE IF
     }
 
-    let private RetrieveOpcodeInstruction opcode (instructions: SBInstructionTable) = sb {        
-        if instructions.ContainsKey(opcode) then
-            return instructions[opcode]
-        else 
-            return! SB.Panic $"Instruction %X{opcode} is not implemented \n"
+    let private RetrieveOpcodeInstruction opcode (instructions: SBInstructionTable) = sb {
+        if instructions.ContainsKey(opcode) <> true then
+            printf $"Instruction not implemented %X{opcode}\n"
+        
+        return instructions[opcode]
     }
 
     let private ReadOpcode = sb {

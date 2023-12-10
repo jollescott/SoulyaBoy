@@ -7,8 +7,5 @@ module SoulyaBoy =
     let CreateSoulyaBoy rom = SBMbFactory.CreateSBMb(rom)
 
     let Run mb (pixelPipe: IPixelPipe) =
-        let result = SB.Run (SBExecutor.Run pixelPipe.DrawPixel) mb
-
-        match result with 
-        | Ok(r, mmb) -> Some mmb
-        | Error(e) -> printf $"{e}"; None
+        let struct (r, mb) = SB.Run (SBExecutor.Run pixelPipe.DrawPixel) mb
+        mb
