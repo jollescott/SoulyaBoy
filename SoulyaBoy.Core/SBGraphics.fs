@@ -25,9 +25,6 @@ module SBGraphics =
 
         let LY = if mb.GPU.LY < 255uy then mb.GPU.LY + 1uy else 0uy
         do! SBIO.WriteByte 0xFF44us LY
-        
-        if LY = 143uy then
-            do! SB.Put {mb with CPU = { mb.CPU with IF = mb.CPU.IF ||| 1uy; IE = mb.CPU.IE ||| 1uy } }
 
         let TILE_MAP_BASE_START = if (mb.GPU.LCDC &&& 0b100uy) = 1uy then 0x9C00us else 0x9800us
         let TILE_MAP_BASE_END = if (mb.GPU.LCDC &&& 0b100uy) = 1uy then 0x9FFFus else 0x9BFFus

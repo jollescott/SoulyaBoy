@@ -471,7 +471,8 @@ module internal SBOpcodes =
         let RET_NZ () = RET_N Flags.Z
         let RET_Z () = RET_ Flags.Z
         let RET_NC () = RET_N Flags.C
-
+        let RET_C () = RET_ Flags.C
+        
         let RETI () = sb {
             do! Misc.IE ()
             do! RET ()
@@ -736,6 +737,7 @@ module internal SBOpcodes =
                              (0xC0uy, (Void(Returns.RET_NZ), "RET NZ", 8))
                              (0xC8uy, (Void(Returns.RET_Z), "RET Z", 8))
                              (0xD0uy, (Void(Returns.RET_NC), "RET NC", 8))
+                             (0xD8uy, (Void(Returns.RET_C), "RET C", 8))
                              (0xD9uy, (Void(Returns.RETI), "RETI", 8))
 
                              (0x01uy, (Short(ShortLoads.LD_BC), "LD BC,nn", 12))
