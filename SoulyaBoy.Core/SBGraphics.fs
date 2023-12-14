@@ -19,13 +19,27 @@ module SBGraphics =
             let py = int ly
             pixelPipe px py shade
     }
-
+    
+    let QueueVBlank = sb {
+        let! mb = SB.Get
+        do! SB.Put { mb with CPU = {mb.CPU with IF = 1uy } }
+    }
+    
+    let UpdateGPUState dots ly = sb {
+        let! mb = SB.Get
+        do! SB.Put {mb with GPU = { mb.GPU with Dots = dots + 4u; LY = ly }}
+    }
+    
     let Process pixelPipe = sb {
         let! mb = SB.Get 
 
-        let LY = if mb.GPU.LY < 255uy then mb.GPU.LY + 1uy else 0uy
-        do! SBIO.WriteByte 0xFF44us LY
-
+        let dots = mb.GPU.Dots
+        
+        let LY = if dots % 456u = 0u then mb.GPU.LY + 1uy else mb.GPU.LY
+        
+        if LY = 144uy && mb.GPU.LY <> LY then
+            do! QueueVBlank
+        
         let TILE_MAP_BASE_START = if (mb.GPU.LCDC &&& 0b100uy) = 1uy then 0x9C00us else 0x9800us
         let TILE_MAP_BASE_END = if (mb.GPU.LCDC &&& 0b100uy) = 1uy then 0x9FFFus else 0x9BFFus
 
@@ -35,4 +49,6 @@ module SBGraphics =
         for tileMapAddress in TILE_MAP_START..TILE_MAP_END do
             let! tileId = SBIO.ReadByte tileMapAddress
             do! DrawTile pixelPipe tileId (tileMapAddress - TILE_MAP_BASE_START) LY
+
+        do! UpdateGPUState dots LY            
     }
