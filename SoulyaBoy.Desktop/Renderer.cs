@@ -29,7 +29,7 @@ namespace SoulyaBoy.Desktop
             1u, 2u, 3u
         };
 
-        private readonly uint[] SCREEN = new uint[256 * 256];
+        private readonly byte[] SCREEN = new byte[160 * 144];
 
         private const string VERTEX_SHADER_SOURCE = @"
         #version 330 core
@@ -56,7 +56,7 @@ namespace SoulyaBoy.Desktop
 
         void main()
         {
-            color = vec3(texture(textureSampler, uv).r);
+            color = vec3(texture(textureSampler, uv));
         }";
 
         public unsafe Renderer(IWindow? window)
@@ -135,7 +135,10 @@ namespace SoulyaBoy.Desktop
             _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
             _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
             _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-            _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
+            _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
+
+            _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureSwizzleB, (int)GLEnum.Red);
+            _gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureSwizzleG, (int)GLEnum.Red);
 
             #endregion
 
@@ -162,9 +165,10 @@ namespace SoulyaBoy.Desktop
             _gl.UseProgram(_shaderProgram);
             _gl.BindTexture(GLEnum.Texture2D, _screenTexture);
 
-            fixed (uint* tex = SCREEN)
+            fixed (byte* tex = SCREEN)
             {
-                _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Red, 256, 256, 0, GLEnum.Red, GLEnum.UnsignedByte, tex);
+                _gl.PixelStore(GLEnum.UnpackAlignment, 1);
+                _gl.TexImage2D(GLEnum.Texture2D, 0, InternalFormat.Red, 160, 144, 0, GLEnum.Red, GLEnum.UnsignedByte, tex);
             }
 
             _gl.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, (void*)0);
@@ -177,7 +181,20 @@ namespace SoulyaBoy.Desktop
 
         public void DrawPixel(int px, int py, byte shade)
         {
-            SCREEN[px + py * 256] = shade * 64u;
+            switch (shade) {
+                case 0:
+                    SCREEN[px + py * 160] = 255;
+                    break;
+                case 1:
+                    SCREEN[px + py * 160] = 170;
+                    break;
+                case 2:
+                    SCREEN[px + py * 160] = 85;
+                    break;
+                case 3:
+                    SCREEN[px + py * 160] = 0;
+                    break;
+            }
         }
 
         internal void Close()
