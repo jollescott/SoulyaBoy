@@ -144,31 +144,6 @@ module internal SBOpcodes =
         let LD_E_HL () = LD_R_HL (fun mb e -> { mb.CPU with E = e })
         let LD_H_HL () = LD_R_HL (fun mb h -> { mb.CPU with H = h })
 
-        let LD_HLD_A () = sb {
-            // TODO: Solve state changes within opcode
-            // TODO: Move to LD (HL),A
-            let! mb = SB.Get
-
-            // TODO Move to DEC HL
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let struct(h, l) = SBUtils.toBytes (hl - 1us)
-
-            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l } }
-            do! SBIO.WriteByte hl mb.CPU.A
-        }
-
-        let LD_A_HLI () = sb {
-            let! mb = SB.Get
-
-            //TODO: Move to INC HL
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let struct(h, l) = SBUtils.toBytes (hl + 1us)
-
-            // TODO: Move to LD A,(HL)
-            let! a = SBIO.ReadByte hl
-            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l; A = a}}
-        }
-
         let LD_nn_A nn = sb {
             let! mb = SB.Get
             do! SBIO.WriteByte nn mb.CPU.A
@@ -214,6 +189,23 @@ module internal SBOpcodes =
             let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
             do! SBIO.WriteByte hl n
         } 
+
+        let LD_HLD_A () = sb {
+            do! LD_HL_A ()
+            do! ShortALU.DEC_HL ()
+        }
+
+        let LD_A_HLI () = sb {
+            let! mb = SB.Get
+
+            //TODO: Move to INC HL
+            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+            let struct(h, l) = SBUtils.toBytes (hl + 1us)
+
+            // TODO: Move to LD A,(HL)
+            let! a = SBIO.ReadByte hl
+            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l; A = a}}
+        }
 
     module ShortLoads =
 

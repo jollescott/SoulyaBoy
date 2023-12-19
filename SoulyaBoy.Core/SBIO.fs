@@ -12,7 +12,12 @@ module SBIO =
         | Array of struct(array<byte> * uint16)
         | IE
         | IF
+        | BGF
+        | LYC
         | LY
+        | STAT
+        | SCY
+        | SCX
         | LCDC
 
     let private IOAccessLookup address = sb {
@@ -22,7 +27,12 @@ module SBIO =
                 | address when 0xffffus = address -> IE
                 | address when 0xff0fus = address -> IF
                 | address when 0xff80us <= address && address <= 0xfffeus -> Array(mb.MMU.HRAM, (address - 0xff80us))
+                | address when address = 0xFF47us -> BGF
+                | address when address = 0xFF45us -> LYC
                 | address when address = 0xFF44us -> LY
+                | address when address = 0xFF41us -> STAT
+                | address when address = 0xFF42us -> SCY
+                | address when address = 0xFF43us -> SCX
                 | address when address = 0xFF40us -> LCDC
                 | address when 0xff00us <= address && address <= 0xff7fus -> Array(mb.MMU.IO, (address - 0xff00us))
                 | address when 0xfea0us <= address && address <= 0xfeffus -> Array(mb.MMU.UNUSABLE, (address - 0xfea0us))
@@ -42,7 +52,12 @@ module SBIO =
                     | Array (arr ,adr) -> arr[int adr]
                     | IE -> mb.CPU.IE
                     | IF -> mb.CPU.IF
+                    | BGF -> mb.GPU.BGF
+                    | LYC -> mb.GPU.LYC
                     | LY -> mb.GPU.LY 
+                    | STAT -> mb.GPU.STAT
+                    | SCX -> mb.GPU.SCX
+                    | SCY -> mb.GPU.SCY
                     | LCDC -> mb.GPU.LCDC
         
         return value
@@ -60,14 +75,19 @@ module SBIO =
                     | Array(arr, adr) -> arr[int adr] <- value; mb
                     | IE -> { mb with CPU = { mb.CPU with IE = value }}
                     | IF -> { mb with CPU = { mb.CPU with IF = value }}
+                    | BGF -> { mb with GPU = { mb.GPU with BGF = value }}
+                    | LYC -> { mb with GPU = { mb.GPU with LYC = value }}
                     | LY -> { mb with GPU = { mb.GPU with LY = value }}
+                    | STAT -> { mb with GPU = { mb.GPU with STAT = (mb.GPU.STAT &&& 0b111uy) ||| (value &&& 0b1111_1000uy)}}
+                    | SCX -> { mb with GPU = { mb.GPU with SCX = value }}
+                    | SCY -> { mb with GPU = { mb.GPU with SCY = value }}
                     | LCDC -> { mb with GPU = { mb.GPU with LCDC = value }}
 
         do! SB.Put mmb
     }
 
 
-    let WriteByte address value = sb {
+    let WriteByte address value = sb {        
         if(address > 0x7FFFus) then
             // No ROM writing for now!
             let! lookup = IOAccessLookup address
