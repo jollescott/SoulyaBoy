@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnableNETAnalyzers>False</EnableNETAnalyzers>
+    <AnalysisLevel>none</AnalysisLevel>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="SBUtils.fs" />
@@ -16,5 +18,8 @@
     <Compile Include="SBInterrupts.fs" />
     <Compile Include="SBExecutor.fs" />
     <Compile Include="SoulyaBoy.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="8.0.100" />
   </ItemGroup>
 </Project>
