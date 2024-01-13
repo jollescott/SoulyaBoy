@@ -4,15 +4,52 @@ module SBGraphics =
 
     let private sb = SBBuilder()
 
-    let DrawPixel pixelPipe dot ly = sb {
+    let ProcessDMATransfer = sb {
+        let! mb = SB.Get
+        let source = uint16 mb.GPU.DMA
+
+        for i = 0us to 156us do 
+            let! object = SBIO.ReadByte (source + i)
+            do! SBIO.WriteByte (0xFE00us+i) object
+
+        do! SB.Put { mb with GPU = { mb.GPU with DMATransfer = false }}
+    }
+
+    let ScanOAM offset = sb {
+        // TODO: Investigate why only running once without this line.
+        let! mb = SB.Get
+
+        let oamDots = mb.GPU.Dots % 456u
+        let objAddress = 0xFE00us + (uint16 (2u*oamDots) + offset*4us)
+        
+        let! objY = SBIO.ReadByte objAddress 
+
+        if objY - 16uy = mb.GPU.LY then
+            let! objX = SBIO.ReadByte (objAddress + 1us) 
+
+            if objX > 8uy && objX < 168uy then
+                let! tileIndex = SBIO.ReadByte (objAddress + 2us)
+                mb.GPU.DrawCalls[int objX - 8] <- OBJ (tileIndex)
+    }
+
+    let DrawOBJ index = sb {
+        let! mb = SB.Get
+        
+        let ly = mb.GPU.LY
+        let dot = (mb.GPU.Dots - 80u) % 160u
+
+        printf "Drawing object %d X: %d Y: %d \n" index dot ly
+    }
+
+    let DrawTile pixelPipe dot ly = sb {
         let! mb = SB.Get
 
         let TILE_MAP_BASE = if (mb.GPU.LCDC &&& 0b1000uy) >>> 3 = 1uy then 0x9C00us else 0x9800us
 
-        let tileIndex = (uint16 ly / 8us) * 32us + (uint16 dot % 160us) / 8us
+        let tileIndex = (uint16 ly / 8us) * 32us + uint16 dot / 8us
         let! tileId = SBIO.ReadByte (TILE_MAP_BASE + tileIndex)
 
-        let sx = int dot % 160
+        let sx = int dot
         let sy = int ly
 
         let tx = sx % 8
@@ -35,6 +72,19 @@ module SBGraphics =
         let paletteShade = (mb.GPU.BGF >>> 2 * int baseShade) &&& 0b11uy
 
         pixelPipe sx sy paletteShade
+    }
+
+    let DrawPixel pixelPipe dot ly = sb {
+        let! mb = SB.Get
+
+        let drawDot = (dot - 80u) % 160u
+        let drawCall = mb.GPU.DrawCalls[int drawDot]
+
+        match drawCall with
+        | Tile -> do! DrawTile pixelPipe drawDot ly
+        | OBJ(objIndex) -> do! DrawOBJ objIndex
+
+        mb.GPU.DrawCalls[int drawDot] <- Tile
     }
     
     let QueueVBlank = sb {
@@ -74,6 +124,7 @@ module SBGraphics =
 
             if LY = 144uy && mb.GPU.Mode = SBGpuMode.HBlank then
                 do! UpdateGPUMode SBGpuMode.VBlank
+                do! QueueVBlank
             else if (lineDots = 0u && mb.GPU.Mode = SBGpuMode.HBlank) || (mb.GPU.Mode = SBGpuMode.VBlank && LY = 0uy) then
                 do! UpdateGPUMode SBGpuMode.OAM
             else if lineDots = 80u && mb.GPU.Mode = SBGpuMode.OAM then
@@ -81,12 +132,18 @@ module SBGraphics =
             else if lineDots = 252u && mb.GPU.Mode = SBGpuMode.Draw then
                 do! UpdateGPUMode SBGpuMode.HBlank
         
-            if lineDots < 240u && LY < 144uy then
+            if mb.GPU.Mode = SBGpuMode.OAM && mb.GPU.LCDC &&& 0b10uy > 0uy then
+                do! ScanOAM 0us
+                do! ScanOAM 1us
+            else if mb.GPU.Mode = SBGpuMode.Draw && LY < 144uy then
                 do! DrawPixel pixelPipe dots LY
                 do! DrawPixel pixelPipe (dots+1u) LY
                 do! DrawPixel pixelPipe (dots+2u) LY
                 do! DrawPixel pixelPipe (dots+3u) LY
-
+            
+            if mb.GPU.DMATransfer then
+                do! ProcessDMATransfer
+            
             do! UpdateLYC LY
             do! UpdateGPUState dots LY            
     }
