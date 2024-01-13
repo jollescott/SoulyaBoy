@@ -18,6 +18,7 @@ module SBIO =
         | STAT
         | SCY
         | SCX
+        | DMA
         | LCDC
 
     let private IOAccessLookup address = sb {
@@ -28,6 +29,7 @@ module SBIO =
                 | address when 0xff0fus = address -> IF
                 | address when 0xff80us <= address && address <= 0xfffeus -> Array(mb.MMU.HRAM, (address - 0xff80us))
                 | address when address = 0xFF47us -> BGF
+                | address when address = 0xFF46us -> DMA
                 | address when address = 0xFF45us -> LYC
                 | address when address = 0xFF44us -> LY
                 | address when address = 0xFF41us -> STAT
@@ -53,6 +55,7 @@ module SBIO =
                     | IE -> mb.CPU.IE
                     | IF -> mb.CPU.IF
                     | BGF -> mb.GPU.BGF
+                    | DMA -> mb.GPU.DMA
                     | LYC -> mb.GPU.LYC
                     | LY -> mb.GPU.LY 
                     | STAT -> mb.GPU.STAT
@@ -76,6 +79,7 @@ module SBIO =
                     | IE -> { mb with CPU = { mb.CPU with IE = value }}
                     | IF -> { mb with CPU = { mb.CPU with IF = value }}
                     | BGF -> { mb with GPU = { mb.GPU with BGF = value }}
+                    | DMA -> { mb with GPU = { mb.GPU with DMA = value; DMATransfer = true }}
                     | LYC -> { mb with GPU = { mb.GPU with LYC = value }}
                     | LY -> { mb with GPU = { mb.GPU with LY = value }}
                     | STAT -> { mb with GPU = { mb.GPU with STAT = (mb.GPU.STAT &&& 0b111uy) ||| (value &&& 0b1111_1000uy)}}

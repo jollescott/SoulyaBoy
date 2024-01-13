@@ -12,7 +12,7 @@ type SBBuilder() =
     member inline this.Zero() = SB(fun mb -> ((), mb))
     member inline _.Return(x) = SB(fun mb -> (x, mb))
     member inline _.ReturnFrom(x) = x
-    member inline this.Bind(x, [<InlineIfLambda>] f) =
+    member inline _.Bind(x, [<InlineIfLambda>] f) =
         let doBind mb = 
             let struct (r, mmb) = SB.Run x mb
             SB.Run (f r) mmb
