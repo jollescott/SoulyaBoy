@@ -6,6 +6,7 @@ open System.Runtime.CompilerServices
 module SBIO =
 
     let sb = SBBuilder()
+    let random = Random()
 
     [<Struct>]
     type private IOAccess = 
@@ -20,6 +21,8 @@ module SBIO =
         | SCX
         | DMA
         | LCDC
+        | DIV
+        | Joypad 
 
     let private IOAccessLookup address = sb {
          let! mb = SB.Get
@@ -36,6 +39,8 @@ module SBIO =
                 | address when address = 0xFF42us -> SCY
                 | address when address = 0xFF43us -> SCX
                 | address when address = 0xFF40us -> LCDC
+                | address when address = 0xFF04us -> DIV
+                | address when address = 0xFF00us -> Joypad
                 | address when 0xff00us <= address && address <= 0xff7fus -> Array(mb.MMU.IO, (address - 0xff00us))
                 | address when 0xfea0us <= address && address <= 0xfeffus -> Array(mb.MMU.UNUSABLE, (address - 0xfea0us))
                 | address when 0xfe00us <= address && address <= 0xfe9fus -> Array(mb.MMU.OAM, (address - 0xfe00us))
@@ -62,6 +67,8 @@ module SBIO =
                     | SCX -> mb.GPU.SCX
                     | SCY -> mb.GPU.SCY
                     | LCDC -> mb.GPU.LCDC
+                    | DIV -> byte(random.Next(255))
+                    | Joypad -> mb.Joypad
         
         return value
     }     
@@ -82,10 +89,11 @@ module SBIO =
                     | DMA -> { mb with GPU = { mb.GPU with DMA = value; DMATransfer = true }}
                     | LYC -> { mb with GPU = { mb.GPU with LYC = value }}
                     | LY -> { mb with GPU = { mb.GPU with LY = value }}
-                    | STAT -> { mb with GPU = { mb.GPU with STAT = (mb.GPU.STAT &&& 0b111uy) ||| (value &&& 0b1111_1000uy)}}
+                    | STAT -> { mb with GPU = { mb.GPU with STAT = (mb.GPU.STAT &&& 0b111uy) &&& (value &&& 0b1111_1000uy)}}
                     | SCX -> { mb with GPU = { mb.GPU with SCX = value }}
                     | SCY -> { mb with GPU = { mb.GPU with SCY = value }}
                     | LCDC -> { mb with GPU = { mb.GPU with LCDC = value }}
+                    | Joypad -> { mb with Joypad =  value ||| 0xFuy }
 
         do! SB.Put mmb
     }

@@ -6,9 +6,9 @@ module SBGraphics =
 
     let ProcessDMATransfer = sb {
         let! mb = SB.Get
-        let source = uint16 mb.GPU.DMA
+        let source = (uint16 mb.GPU.DMA) * 0x100us
 
-        for i = 0us to 156us do 
+        for i = 0us to 0x9Fus do 
             let! object = SBIO.ReadByte (source + i)
             do! SBIO.WriteByte (0xFE00us+i) object
 
@@ -89,7 +89,7 @@ module SBGraphics =
     
     let QueueVBlank = sb {
         let! mb = SB.Get
-        do! SB.Put { mb with CPU = {mb.CPU with IF = 1uy } }
+        do! SB.Put { mb with CPU = { mb.CPU with IF = 1uy } }
     }
 
     let UpdateGPUMode mode = sb {
@@ -98,9 +98,13 @@ module SBGraphics =
         do! SB.Put { mb with GPU = {mb.GPU with Mode = mode; STAT = stat }}
     }
     
-    let UpdateGPUState dots ly = sb {
+    let UpdateGPUState = sb {
         let! mb = SB.Get
-        do! SB.Put {mb with GPU = { mb.GPU with Dots = dots + 4u; LY = ly }}
+        
+        let ly = if mb.GPU.LY = 153uy then 0uy else if mb.GPU.Dots % 456u = 0u then mb.GPU.LY + 1uy else mb.GPU.LY
+        let dots = if mb.GPU.Dots = 70224u then 0u else mb.GPU.Dots + 4u
+                
+        do! SB.Put {mb with GPU = { mb.GPU with Dots = dots; LY = ly }}
     }
 
     let UpdateLYC ly = sb {
@@ -115,16 +119,14 @@ module SBGraphics =
     let Process pixelPipe = sb {
         let! mb = SB.Get 
 
+        let dots = mb.GPU.Dots
+        let LY = mb.GPU.LY
+        
         if mb.GPU.LCDC >>> 7 = 1uy then
-            let dots = mb.GPU.Dots
-        
-            let LY = if mb.GPU.LY = 154uy then 0uy else if dots % 456u = 0u then mb.GPU.LY + 1uy else mb.GPU.LY
-        
             let lineDots = dots % 456u
 
             if LY = 144uy && mb.GPU.Mode = SBGpuMode.HBlank then
                 do! UpdateGPUMode SBGpuMode.VBlank
-                do! QueueVBlank
             else if (lineDots = 0u && mb.GPU.Mode = SBGpuMode.HBlank) || (mb.GPU.Mode = SBGpuMode.VBlank && LY = 0uy) then
                 do! UpdateGPUMode SBGpuMode.OAM
             else if lineDots = 80u && mb.GPU.Mode = SBGpuMode.OAM then
@@ -136,14 +138,15 @@ module SBGraphics =
                 do! ScanOAM 0us
                 do! ScanOAM 1us
             else if mb.GPU.Mode = SBGpuMode.Draw && LY < 144uy then
-                do! DrawPixel pixelPipe dots LY
-                do! DrawPixel pixelPipe (dots+1u) LY
-                do! DrawPixel pixelPipe (dots+2u) LY
-                do! DrawPixel pixelPipe (dots+3u) LY
+                if mb.GPU.LCDC &&& 0b1uy > 0uy then
+                    do! DrawPixel pixelPipe dots LY
+                    do! DrawPixel pixelPipe (dots+1u) LY
+                    do! DrawPixel pixelPipe (dots+2u) LY
+                    do! DrawPixel pixelPipe (dots+3u) LY
             
             if mb.GPU.DMATransfer then
                 do! ProcessDMATransfer
             
             do! UpdateLYC LY
-            do! UpdateGPUState dots LY            
+            do! UpdateGPUState        
     }
