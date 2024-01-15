@@ -181,20 +181,17 @@ namespace SoulyaBoy.Desktop
 
         public void DrawPixel(int px, int py, byte shade)
         {
-            switch (shade) {
-                case 0:
-                    SCREEN[px + py * 160] = 255;
-                    break;
-                case 1:
-                    SCREEN[px + py * 160] = 170;
-                    break;
-                case 2:
-                    SCREEN[px + py * 160] = 85;
-                    break;
-                case 3:
-                    SCREEN[px + py * 160] = 0;
-                    break;
-            }
+            // Note: 143 - py is due to OpenGL loading texture from bottom left rather than top left.
+            var arrayIndex = px + (143 - py) * 160;
+
+            SCREEN[arrayIndex] = shade switch
+            {
+                0 => 255,
+                1 => 170,
+                2 => 85,
+                3 => 0,
+                _ => SCREEN[arrayIndex]
+            };
         }
 
         internal void Close()

@@ -31,7 +31,7 @@ type SBGpu = {
 
 module SBGpuFactory = 
     let CreateGPU = 
-        { LY = 0x91uy
+        { LY = 0uy
           LYC = 0uy
           LCDC = 0x91uy
           STAT = 0x81uy
