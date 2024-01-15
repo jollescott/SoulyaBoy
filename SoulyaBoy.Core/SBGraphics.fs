@@ -44,7 +44,7 @@ module SBGraphics =
     let DrawTile pixelPipe dot ly = sb {
         let! mb = SB.Get
 
-        let TILE_MAP_BASE = if (mb.GPU.LCDC &&& 0b1000uy) >>> 3 = 1uy then 0x9C00us else 0x9800us
+        let TILE_MAP_BASE = if (mb.GPU.LCDC &&& 0b1000uy) <> 0uy then 0x9C00us else 0x9800us
 
         let tileIndex = (uint16 ly / 8us) * 32us + uint16 dot / 8us
         let! tileId = SBIO.ReadByte (TILE_MAP_BASE + tileIndex)
@@ -58,20 +58,21 @@ module SBGraphics =
         let addressingMode = (mb.GPU.LCDC &&& 0b1_0000uy) >>> 4
 
         let address = if addressingMode = 1uy && tileId < 128uy then
-                            0x8000us + (uint16 tileId - 1us) * 16us + (uint16 ty * 2us)
+                            0x8000us + (uint16 tileId) * 16us + (uint16 ty * 2us)
                         else if addressingMode <> 1uy && tileId < 128uy then
-                            0x9000us + (uint16 tileId - 1us) * 16us + (uint16 ty * 2us)
+                            0x9000us + (uint16 tileId) * 16us + (uint16 ty * 2us)
                         else
-                            0x8800us + (uint16 tileId - 127us) * 16us + (uint16 ty * 2us)
+                            0x8800us + (uint16 tileId - 128us) * 16us + (uint16 ty * 2us)
                             
 
         let! row1 = SBIO.ReadByte (address)
         let! row2 = SBIO.ReadByte (address+1us)
 
-        let baseShade = (row1 >>> (7 - tx)) &&& 1uy ||| ((row2 >>> (7 - tx)) <<< 1) &&& 1uy;
-        let paletteShade = (mb.GPU.BGF >>> 2 * int baseShade) &&& 0b11uy
+        let colorId = (row1 >>> (7 - tx)) &&& 1uy ||| ((row2 >>> (7 - tx)) <<< 1) &&& 1uy
+        assert (colorId < 3uy)
+        let paletteColor = (mb.GPU.BGF >>> 2 * int colorId) &&& 0b11uy
 
-        pixelPipe sx sy paletteShade
+        pixelPipe sx sy paletteColor
     }
 
     let DrawPixel pixelPipe dot ly = sb {
@@ -117,8 +118,8 @@ module SBGraphics =
     }
     
     let Process pixelPipe = sb {
-        let! mb = SB.Get 
-
+        let! mb = SB.Get
+        
         let dots = mb.GPU.Dots
         let LY = mb.GPU.LY
         
@@ -127,6 +128,7 @@ module SBGraphics =
 
             if LY = 144uy && mb.GPU.Mode = SBGpuMode.HBlank then
                 do! UpdateGPUMode SBGpuMode.VBlank
+                do! QueueVBlank
             else if (lineDots = 0u && mb.GPU.Mode = SBGpuMode.HBlank) || (mb.GPU.Mode = SBGpuMode.VBlank && LY = 0uy) then
                 do! UpdateGPUMode SBGpuMode.OAM
             else if lineDots = 80u && mb.GPU.Mode = SBGpuMode.OAM then

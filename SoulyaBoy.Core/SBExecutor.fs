@@ -32,7 +32,7 @@ module internal SBExecutor =
         if int IE >>> i <> 0 && int IF >>> i <> 0 then
             let! mb = SB.Get
             do! SB.Put {mb with CPU = { mb.CPU with IF = IF &&& ~~~(1uy<<<i) }}       
-
+            
             do! SBOpcodes.Calls.CALL INTERRUPT_ADDRESSES[i]
         elif i < 4 then
             do! TryRunInterrupt (i+1) IE IF
