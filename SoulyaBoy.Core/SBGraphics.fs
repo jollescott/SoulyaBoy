@@ -90,7 +90,9 @@ module SBGraphics =
     
     let QueueVBlank = sb {
         let! mb = SB.Get
-        do! SB.Put { mb with CPU = { mb.CPU with IF = 1uy } }
+        
+        if mb.CPU.IE &&& 0b1uy <> 0uy then
+            do! SB.Put { mb with CPU = { mb.CPU with IF = 1uy } }
     }
 
     let UpdateGPUMode mode = sb {
@@ -149,6 +151,6 @@ module SBGraphics =
             if mb.GPU.DMATransfer then
                 do! ProcessDMATransfer
             
-            do! UpdateLYC LY
-            do! UpdateGPUState        
+        do! UpdateLYC LY
+        do! UpdateGPUState        
     }

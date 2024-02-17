@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="SBUtils.fs" />
+    <Compile Include="SBInput.fs" />
     <Compile Include="SBGpu.fs" />
     <Compile Include="SBMmu.fs" />
     <Compile Include="SBCpu.fs" />

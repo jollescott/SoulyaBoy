@@ -6,7 +6,7 @@ open System.Runtime.CompilerServices
 type SBMb = { CPU: SBCpu; MMU: SBMmu; GPU: SBGpu; Joypad: byte }
 
 module SBMbFactory =
-    let CreateSBMb (rom) =
+    let CreateSBMb rom =
         { CPU = SBCpuFactory.CreateCPU
           MMU = SBMmuFactory.CreateMMU(rom)
           GPU = SBGpuFactory.CreateGPU
