@@ -26,6 +26,8 @@ module SBIO =
 
     let private IOAccessLookup address = sb {
          let! mb = SB.Get
+         
+         assert (address <> 0xFF04us)
 
          return match address with
                 | address when 0xffffus = address -> IE
@@ -93,7 +95,7 @@ module SBIO =
                     | SCX -> { mb with GPU = { mb.GPU with SCX = value }}
                     | SCY -> { mb with GPU = { mb.GPU with SCY = value }}
                     | LCDC -> { mb with GPU = { mb.GPU with LCDC = value }}
-                    | Joypad -> { mb with Joypad =  value ||| 0xFuy }
+                    | Joypad -> { mb with Joypad = value }
 
         do! SB.Put mmb
     }

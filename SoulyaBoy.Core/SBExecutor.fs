@@ -64,10 +64,11 @@ module internal SBExecutor =
     let private FetchInstruction = sb {
         let! opcode = ReadOpcode
         let cbExtension = opcode = 0xCBuy
-
+        
         if cbExtension then
             do! IncrementPC 0us
             let! exOpcode = ReadOpcode
+                        
             return! RetrieveOpcodeInstruction exOpcode SBOpcodes.CB_EXTENSIONS
         else 
             return! RetrieveOpcodeInstruction opcode SBOpcodes.INSTRUCTIONS
