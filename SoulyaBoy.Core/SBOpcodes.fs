@@ -388,17 +388,32 @@ module internal SBOpcodes =
             do! JP address
         }
 
-    module Bit = 
-        let RES get set b = sb {            
+    module Bit =
+        let RES_OP r b = r &&& ~~~(1uy <<< int b)
+        
+        let RES getR setR b = sb {            
             let! mb = SB.Get
 
-            let r = get mb.CPU
-            let x = r &&& ~~~(1uy <<< int b)
+            let r = getR mb.CPU
+            let x = RES_OP r b
 
-            do! SB.Put { mb with CPU = set mb.CPU x }
+            do! SB.Put { mb with CPU = setR mb.CPU x }
         }
 
-        let RES_0_A () = RES (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x }) 0uy
+        let RES_0_A () = RES (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x }) 0
+        
+        let RES_HL b = sb {
+            let! mb = SB.Get
+            
+            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+            let! r = SBIO.ReadByte hl 
+            
+            let x = RES_OP r b
+           
+            do! SBIO.WriteByte hl x
+        }
+        
+        let RES_0_HL () = RES_HL 0
         
         let SET get set b = sb {
             let! mb = SB.Get
@@ -411,11 +426,13 @@ module internal SBOpcodes =
         
         let SET_6_A () = SET (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x }) 6uy
 
+        let BIT_OP r b = r &&& (1uy <<< int b)
+        
         let BIT get b = sb {
             let! mb = SB.Get
             
             let r = get mb.CPU
-            let x = r &&& (1uy <<< int b)
+            let x = BIT_OP r b
             
             do! SetIf Flags.Z (x = 0uy)
             do! Reset Flags.N
@@ -426,8 +443,20 @@ module internal SBOpcodes =
         let BIT_3_B () = BIT (fun cpu -> cpu.B) 3
         let BIT_4_B () = BIT (fun cpu -> cpu.B) 4
         let BIT_5_B () = BIT (fun cpu -> cpu.B) 5
-        
         let BIT_7_A () = BIT (fun cpu -> cpu.A) 7
+    
+        let BIT_HL b = sb {
+            let! mb = SB.Get
+            
+            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+            let! r = SBIO.ReadByte hl
+            
+            let x = BIT_OP r b
+            
+            do! SBIO.WriteByte hl x
+        }
+        
+        let BIT_7_HL () = BIT_HL 7
     
     module Calls =
         let CALL nn = sb {
@@ -854,10 +883,12 @@ module internal SBOpcodes =
 
     let internal CB_EXTENSIONS = 
         SBInstructionTable [ (0x87uy, (Void(Bit.RES_0_A), "RES 0,A", 8))
+                             (0x86uy, (Void(Bit.RES_0_HL), "RES 0,(HL)", 8))
                              (0x27uy, (Void(RotatesShifts.SLA_A), "SLA A", 8))
                              (0x37uy, (Void(Misc.SWAP_A), "SWAP A", 8))
                              (0x50uy, (Void(Bit.BIT_2_B), "BIT 2,B", 8))
                              (0x58uy, (Void(Bit.BIT_3_B), "BIT 3,B", 8))
                              (0x60uy, (Void(Bit.BIT_4_B), "BIT 4,B", 8))
                              (0x68uy, (Void(Bit.BIT_5_B), "BIT 5,B", 8))
+                             (0x7Euy, (Void(Bit.BIT_7_HL), "BIT 7,(HL)", 8))
                              (0x7Fuy, (Void(Bit.BIT_7_A), "BIT 7,A", 8))]
