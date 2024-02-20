@@ -712,18 +712,34 @@ module internal SBOpcodes =
         let NOP () = sb { () }
 
     module RotatesShifts =
+        let RLCA () = sb {
+            let! mb = SB.Get
+            
+            // TODO: Move to param when implementing RLA
+            let c = mb.CPU.A >>> 7
+            let a = ((mb.CPU.A <<< 1) &&& ~~~0b1uy) ||| c
+            
+            do! SB.Put { mb with CPU = { mb.CPU with A = a } }
+            
+            do! SetIf Flags.Z (a = 0uy)
+            do! Reset Flags.N
+            do! Reset Flags.H
+            do! SetIf Flags.C (c = 1uy)
+        }
         let RRA () = sb {
             let! mb = SB.Get
             
-            let c: byte = mb.CPU.A &&& 0b1uy
-            let a: byte = (mb.CPU.A >>> 1) ||| (c <<< 7)
+            // TODO: Move to param when implementing RRCA 
+            let oc = mb.CPU.F &&& 0x20uy
+            let nc = mb.CPU.A &&& 0b1uy
+            let a = (mb.CPU.A >>> 1) ||| (oc <<< 7)
 
             do! SB.Put { mb with CPU = { mb.CPU with A = a } }
 
             do! SetIf Flags.Z (a = 0uy)
             do! Reset Flags.N
             do! Reset Flags.H
-            do! SetIf Flags.C (c = 1uy)
+            do! SetIf Flags.C (nc = 1uy)
         }
         
         let SLA_A () = sb {
@@ -821,6 +837,7 @@ module internal SBOpcodes =
                              (0xF6uy, (Byte(ByteALU.OR), "OR n", 8))
                              (0xAFuy, (Register(ByteALU.XOR, (fun cpu -> cpu.A)), "XOR A", 4))
                              (0xA9uy, (Register(ByteALU.XOR, (fun cpu -> cpu.C)), "XOR C", 4))
+                             (0xEEuy, (Byte(ByteALU.XOR), "XOR n", 8))
                              (0xFEuy, (Byte(ByteALU.CP_n), "CP #", 8))
 
                              (0x0uy, (Const(Control.NOP), "NOP", 4))
@@ -879,6 +896,7 @@ module internal SBOpcodes =
                              (0xF3uy, (Void(Misc.DI), "DI", 4))
                              (0xFBuy, (Void(Misc.IE), "IE", 4))
 
+                             (0x07uy, (Void(RotatesShifts.RLCA), "RLCA", 4))
                              (0x1Fuy, (Void(RotatesShifts.RRA), "RRA", 4)) ]
 
     let internal CB_EXTENSIONS = 
