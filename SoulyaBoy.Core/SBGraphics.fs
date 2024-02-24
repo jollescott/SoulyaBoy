@@ -65,13 +65,13 @@ module SBGraphics =
                             0x8800us + (uint16 tileId - 128us) * 16us + (uint16 ty * 2us)
                             
 
-        let! row1 = SBIO.ReadByte (address)
+        let! row1 = SBIO.ReadByte address
         let! row2 = SBIO.ReadByte (address+1us)
 
-        let colorId = (row1 >>> (7 - tx)) &&& 1uy ||| ((row2 >>> (7 - tx)) <<< 1) &&& 1uy
-        assert (colorId < 3uy)
+        let colorId = ((row1 >>> (7 - tx)) &&& 1uy) ||| (((row2 >>> (7 - tx)) &&& 1uy) <<< 1)
+                
         let paletteColor = (mb.GPU.BGF >>> 2 * int colorId) &&& 0b11uy
-
+        
         pixelPipe sx sy paletteColor
     }
 
