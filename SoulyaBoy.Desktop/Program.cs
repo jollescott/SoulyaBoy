@@ -61,28 +61,28 @@ public class Program
         switch (key)
         {
             case Key.W:
-                _input &= SBInput.Up;
+                _input &= ~SBInput.Up;
                 break;
             case Key.S:
-                _input &= SBInput.Down;
+                _input &= ~SBInput.Down;
                 break;
             case Key.A:
-                _input &= SBInput.Left;
+                _input &= ~SBInput.Left;
                 break;
             case Key.D:
-                _input &= SBInput.Right;
+                _input &= ~SBInput.Right;
                 break;
             case Key.H:
-                _input &= SBInput.Start;
+                _input &= ~SBInput.Start;
                 break;
             case Key.J:
-                _input &= SBInput.Select;
+                _input &= ~SBInput.Select;
                 break;
             case Key.K:
-                _input &= SBInput.A;
+                _input &= ~SBInput.A;
                 break;
             case Key.L:
-                _input &= SBInput.B;
+                _input &= ~SBInput.B;
                 break;
         }
     }
