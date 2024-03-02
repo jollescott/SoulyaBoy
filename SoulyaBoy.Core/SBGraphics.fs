@@ -37,8 +37,7 @@ module SBGraphics =
         
         let ly = mb.GPU.LY
         let dot = (mb.GPU.Dots - 80u) % 160u
-
-        printf "Drawing object %d X: %d Y: %d \n" index dot ly
+        ()
     }
 
     let DrawTile pixelPipe dot ly = sb {
