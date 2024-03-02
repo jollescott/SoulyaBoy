@@ -27,8 +27,6 @@ module SBIO =
     let private IOAccessLookup address = sb {
          let! mb = SB.Get
          
-         assert (address <> 0xFF04us)
-
          return match address with
                 | address when 0xffffus = address -> IE
                 | address when 0xff0fus = address -> IF
