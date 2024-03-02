@@ -1,36 +1,30 @@
-﻿using Silk.NET.Windowing;
-using SoulyaBoy.Core;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Silk.NET.Input;
+using Silk.NET.Maths;
+using Silk.NET.Windowing;
+using SoulyaBoy.Core;
 
 namespace SoulyaBoy.Desktop;
 
-public class Program
+public static class Program
 {
-    /// <summary>
-    /// The CPU frequency (Hz) of the original Gameboy.
-    /// </summary>
-    private static readonly double CPU_FREQ = 4194304;
     private static Thread? _emulatorThread;
     private static IWindow? _window;
     private static Renderer? _renderer;
 
     private static SBMb _sbmb;
     private static SBInput _input = SBInput.None;
-    
+
     private static bool _running = true;
 
     private static void EmulatorProc()
     {
-        while (_running)
-        {
-            _sbmb = Core.SoulyaBoy.Run(_sbmb, _input, _renderer);
-        }
+        while (_running) _sbmb = Core.SoulyaBoy.Run(_sbmb, _input, _renderer);
     }
 
     private static void OnRender(double deltaTime)
     {
-        _renderer?.Render(deltaTime);
+        _renderer?.Render();
     }
 
     private static void OnLoad()
@@ -126,12 +120,12 @@ public class Program
         _renderer?.Close();
     }
 
-    public static void Main(string[] args)
+    public static void Main()
     {
         var options = WindowOptions.Default with
         {
-            Size = new Silk.NET.Maths.Vector2D<int>(800, 600),
-            Title = "SoulyaBoy",
+            Size = new Vector2D<int>(800, 600),
+            Title = "SoulyaBoy"
         };
 
         _window = Window.Create(options);

@@ -7,5 +7,3 @@ module SBInterrupts =
         | TimerOverflow = 0x50
         | SerialTransferCompletion = 0x58
         | HighToLow = 0x60
-        
-    

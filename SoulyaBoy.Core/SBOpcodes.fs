@@ -25,7 +25,7 @@ type internal SBInstructionTable = Map<byte, SBInstructionEntry>
 
 module internal SBOpcodes =
 
-    let private sb = new SBBuilder()
+    let private sb = SBBuilder()
 
     type Flags =
         | Z = 0b1000_0000uy
@@ -33,831 +33,964 @@ module internal SBOpcodes =
         | H = 0b0010_0000uy
         | C = 0b0001_0000uy
 
-    let Set flag = sb {
-        let! mb = SB.Get
-        do! SB.Put {mb with CPU = { mb.CPU with F = mb.CPU.F ||| byte flag }} 
-    }   
+    let Set flag =
+        sb {
+            let! mb = SB.Get
+            do! SB.Put { mb with CPU.F = mb.CPU.F ||| byte flag }
+        }
 
-    let Reset flag = sb {
-        let! mb = SB.Get
-        do! SB.Put { mb with CPU = { mb.CPU with F = mb.CPU.F &&& ~~~(byte flag) }}
-    }
+    let Reset flag =
+        sb {
+            let! mb = SB.Get
+            do! SB.Put { mb with CPU.F = mb.CPU.F &&& ~~~(byte flag) }
+        }
 
     let SetIf flag condition =
-        if condition then Set flag else Reset flag
+        if condition then
+            Set flag
+        else
+            Reset flag
 
 
     module ShortALU =
-        let ADD_HL nn = sb {
-            let! mb = SB.Get
+        let ADD_HL nn =
+            sb {
+                let! mb = SB.Get
 
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let r = int hl + int nn
-            let struct (h,l) = SBUtils.toBytes (uint16 r)
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let r = int hl + int nn
+                let struct (h, l) = SBUtils.toBytes (uint16 r)
 
-            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l }}
+                do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l } }
 
-            do! Reset Flags.N
-            do! SetIf Flags.H ((hl &&& 0xFFFus) + (nn &&& 0xFFFus) > 0xFFFus)
-            do! SetIf Flags.C (r > 0xFFFF)
-        }
-        
-        let ADD_HL_BC () = sb {
-            let! mb = SB.Get
-            
-            let bc = SBUtils.toShort mb.CPU.B mb.CPU.C
-            do! ADD_HL bc
-        }
+                do! Reset Flags.N
+                do! SetIf Flags.H ((hl &&& 0xFFFus) + (nn &&& 0xFFFus) > 0xFFFus)
+                do! SetIf Flags.C (r > 0xFFFF)
+            }
 
-        let ADD_HL_DE () = sb {
-            let! mb = SB.Get
+        let ADD_HL_BC () =
+            sb {
+                let! mb = SB.Get
 
-            let de = SBUtils.toShort mb.CPU.D mb.CPU.E
-            do! ADD_HL de
-        }
+                let bc = SBUtils.toShort mb.CPU.B mb.CPU.C
+                do! ADD_HL bc
+            }
 
-        let ADD_HL_SP () = sb {
-            let! mb = SB.Get
-            do! ADD_HL mb.CPU.SP
-        }
+        let ADD_HL_DE () =
+            sb {
+                let! mb = SB.Get
 
-        let INC_DEC_nn op get set = sb {
-            let! mb = SB.Get
-            
-            let nn = get mb ||> SBUtils.toShort 
-            let struct (h,l) = SBUtils.toBytes (op nn 1us)
+                let de = SBUtils.toShort mb.CPU.D mb.CPU.E
+                do! ADD_HL de
+            }
 
-            do! SB.Put { mb with CPU = set mb h l }
-        }
+        let ADD_HL_SP () =
+            sb {
+                let! mb = SB.Get
+                do! ADD_HL mb.CPU.SP
+            }
 
-        let INC_nn = INC_DEC_nn (+)
-        let INC_BC () = INC_nn (fun mb -> (mb.CPU.B, mb.CPU.C)) (fun mb b c -> { mb.CPU with B = b; C = c }) 
-        let INC_DE () = INC_nn (fun mb -> (mb.CPU.D, mb.CPU.E)) (fun mb d e -> { mb.CPU with D = d; E = e; }) 
-        let INC_HL () = INC_nn (fun mb -> (mb.CPU.H, mb.CPU.L)) (fun mb h l -> { mb.CPU with H = h; L = l })
+        let INC_DEC_nn op get set =
+            sb {
+                let! mb = SB.Get
 
-        let INC_SP () = sb {
-            let! mb = SB.Get
-            let sp = mb.CPU.SP + 1us
-            do! SB.Put { mb with CPU = { mb.CPU with SP = sp }}
-        }
+                let nn = get mb ||> SBUtils.toShort
+                let struct (h, l) = SBUtils.toBytes (op nn 1us)
 
-        let DEC_nn = INC_DEC_nn (-)
-        let DEC_BC () = DEC_nn (fun mb -> (mb.CPU.B, mb.CPU.C)) (fun mb b c -> { mb.CPU with B = b; C = c })
-        let DEC_DE () = DEC_nn (fun mb -> (mb.CPU.D, mb.CPU.E)) (fun mb d e -> { mb.CPU with D = d; E = e })
-        let DEC_HL () = DEC_nn (fun mb -> (mb.CPU.H, mb.CPU.L)) (fun mb h l -> { mb.CPU with H = h; L = l })
+                do! SB.Put { mb with CPU = set mb h l }
+            }
+
+        let INC_nn = INC_DEC_nn(+)
+
+        let INC_BC () =
+            INC_nn (fun mb -> (mb.CPU.B, mb.CPU.C)) (fun mb b c -> { mb.CPU with B = b; C = c })
+
+        let INC_DE () =
+            INC_nn (fun mb -> (mb.CPU.D, mb.CPU.E)) (fun mb d e -> { mb.CPU with D = d; E = e })
+
+        let INC_HL () =
+            INC_nn (fun mb -> (mb.CPU.H, mb.CPU.L)) (fun mb h l -> { mb.CPU with H = h; L = l })
+
+        let INC_SP () =
+            sb {
+                let! mb = SB.Get
+                let sp = mb.CPU.SP + 1us
+                do! SB.Put { mb with CPU.SP = sp }
+            }
+
+        let DEC_nn = INC_DEC_nn(-)
+
+        let DEC_BC () =
+            DEC_nn (fun mb -> (mb.CPU.B, mb.CPU.C)) (fun mb b c -> { mb.CPU with B = b; C = c })
+
+        let DEC_DE () =
+            DEC_nn (fun mb -> (mb.CPU.D, mb.CPU.E)) (fun mb d e -> { mb.CPU with D = d; E = e })
+
+        let DEC_HL () =
+            DEC_nn (fun mb -> (mb.CPU.H, mb.CPU.L)) (fun mb h l -> { mb.CPU with H = h; L = l })
 
     module ByteLoads =
 
-        let LD_n mut = sb {
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = mut mb}
-        }
+        let LD_n mut =
+            sb {
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU = mut mb }
+            }
 
-        let LD_A n = LD_n (fun mb -> { mb.CPU with A = n })
-        let LD_B n = LD_n (fun mb -> { mb.CPU with B = n })
-        let LD_C n = LD_n (fun mb -> { mb.CPU with C = n })
-        let LD_D n = LD_n (fun mb -> { mb.CPU with D = n })
-        let LD_E n = LD_n (fun mb -> { mb.CPU with E = n })
-        let LD_H n = LD_n (fun mb -> { mb.CPU with H = n })
-        let LD_L n = LD_n (fun mb -> { mb.CPU with L = n })
+        let LD_A n = LD_n(fun mb -> { mb.CPU with A = n })
+        let LD_B n = LD_n(fun mb -> { mb.CPU with B = n })
+        let LD_C n = LD_n(fun mb -> { mb.CPU with C = n })
+        let LD_D n = LD_n(fun mb -> { mb.CPU with D = n })
+        let LD_E n = LD_n(fun mb -> { mb.CPU with E = n })
+        let LD_H n = LD_n(fun mb -> { mb.CPU with H = n })
+        let LD_L n = LD_n(fun mb -> { mb.CPU with L = n })
 
-        let LD_A_nn nn = sb {
-            let! a = SBIO.ReadByte nn
-            do! LD_A a
-        }
+        let LD_A_nn nn =
+            sb {
+                let! a = SBIO.ReadByte nn
+                do! LD_A a
+            }
 
-        let LD_A_BC () = sb {
-            let! mb = SB.Get
-            
-            let address = SBUtils.toShort mb.CPU.B mb.CPU.C
-            do! LD_A_nn address
-        }
-        
-        let LD_A_DE () = sb {
-            let! mb = SB.Get
+        let LD_A_BC () =
+            sb {
+                let! mb = SB.Get
 
-            let address = SBUtils.toShort mb.CPU.D mb.CPU.E
-            do! LD_A_nn address
-        }
+                let address = SBUtils.toShort mb.CPU.B mb.CPU.C
+                do! LD_A_nn address
+            }
 
-        let LD_FF00_C_A () = sb {
-            let! mb = SB.Get
-            let address = 0xFF00us + uint16 mb.CPU.C
+        let LD_A_DE () =
+            sb {
+                let! mb = SB.Get
 
-            do! SBIO.WriteByte address mb.CPU.A
-        }
+                let address = SBUtils.toShort mb.CPU.D mb.CPU.E
+                do! LD_A_nn address
+            }
 
-        let LD_R_HL setR = sb {
-            let! mb = SB.Get
-            let address = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let! r = SBIO.ReadByte address
-            do! SB.Put { mb with CPU = setR mb r }
-        }
+        let LD_FF00_C_A () =
+            sb {
+                let! mb = SB.Get
+                let address = 0xFF00us + uint16 mb.CPU.C
 
-        let LD_A_HL () = LD_R_HL (fun mb a -> { mb.CPU with A = a })
-        let LD_B_HL () = LD_R_HL (fun mb b -> { mb.CPU with B = b })
-        let LD_C_HL () = LD_R_HL (fun mb c -> { mb.CPU with C = c })
-        let LD_D_HL () = LD_R_HL (fun mb d -> { mb.CPU with D = d })
-        let LD_E_HL () = LD_R_HL (fun mb e -> { mb.CPU with E = e })
-        let LD_H_HL () = LD_R_HL (fun mb h -> { mb.CPU with H = h })
+                do! SBIO.WriteByte address mb.CPU.A
+            }
 
-        let LD_nn_R R nn = sb {
-            let! mb = SB.Get
-            do! SBIO.WriteByte nn (R mb.CPU)
-        }
-        
-        let LD_nn_A = LD_nn_R (fun cpu -> cpu.A)
-        let LD_nn_B = LD_nn_R (fun cpu -> cpu.B)
+        let LD_R_HL setR =
+            sb {
+                let! mb = SB.Get
+                let address = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let! r = SBIO.ReadByte address
+                do! SB.Put { mb with CPU = setR mb r }
+            }
 
-        let LD_DE_A () = sb {
-            let! mb = SB.Get
-            let address = SBUtils.toShort mb.CPU.D mb.CPU.E
-            do! LD_nn_A address
-        }
+        let LD_A_HL () =
+            LD_R_HL(fun mb a -> { mb.CPU with A = a })
 
-        let LD_HL_A () = sb {
-            let! mb = SB.Get
-            let address = SBUtils.toShort mb.CPU.H mb.CPU.L
-            do! LD_nn_A address
-        }
-        
-        let LD_HL_B () = sb {
-            let! mb = SB.Get
-            let address = SBUtils.toShort mb.CPU.H mb.CPU.L
-            do! LD_nn_B address
-        }
+        let LD_B_HL () =
+            LD_R_HL(fun mb b -> { mb.CPU with B = b })
 
-        let LDI_HL_A () = sb {
-            do! LD_HL_A ()
-            do! ShortALU.INC_HL ()
-        }
+        let LD_C_HL () =
+            LD_R_HL(fun mb c -> { mb.CPU with C = c })
 
-        let LD_n_A n = sb {
-            let! mb = SB.Get
+        let LD_D_HL () =
+            LD_R_HL(fun mb d -> { mb.CPU with D = d })
 
-            let address = 0xFF00us + uint16 n            
-            do! SBIO.WriteByte address mb.CPU.A
-        }
+        let LD_E_HL () =
+            LD_R_HL(fun mb e -> { mb.CPU with E = e })
 
-        let LD_A_n n = sb {
-            let! mb = SB.Get
+        let LD_H_HL () =
+            LD_R_HL(fun mb h -> { mb.CPU with H = h })
 
-            let address = 0xFF00us + uint16 n
-            let! A = SBIO.ReadByte address
+        let LD_nn_R R nn =
+            sb {
+                let! mb = SB.Get
+                do! SBIO.WriteByte nn (R mb.CPU)
+            }
 
-            do! SB.Put { mb with CPU = { mb.CPU with A = A } }
-        }
+        let LD_nn_A = LD_nn_R(_.A)
+        let LD_nn_B = LD_nn_R(_.B)
 
-        let LD_HL_n n = sb {
-            let! mb = SB.Get
+        let LD_DE_A () =
+            sb {
+                let! mb = SB.Get
+                let address = SBUtils.toShort mb.CPU.D mb.CPU.E
+                do! LD_nn_A address
+            }
 
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            do! SBIO.WriteByte hl n
-        }
-        
-        let LDD_A_HL () = sb {
-            do! LD_A_HL ()
-            do! ShortALU.DEC_HL ()
-        }
+        let LD_HL_A () =
+            sb {
+                let! mb = SB.Get
+                let address = SBUtils.toShort mb.CPU.H mb.CPU.L
+                do! LD_nn_A address
+            }
 
-        let LDD_HL_A () = sb {
-            do! LD_HL_A ()
-            do! ShortALU.DEC_HL ()
-        }
+        let LD_HL_B () =
+            sb {
+                let! mb = SB.Get
+                let address = SBUtils.toShort mb.CPU.H mb.CPU.L
+                do! LD_nn_B address
+            }
 
-        let LDI_A_HL () = sb {
-            let! mb = SB.Get
+        let LDI_HL_A () =
+            sb {
+                do! LD_HL_A()
+                do! ShortALU.INC_HL()
+            }
 
-            //TODO: Move to INC HL
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let struct(h, l) = SBUtils.toBytes (hl + 1us)
+        let LD_n_A n =
+            sb {
+                let! mb = SB.Get
 
-            // TODO: Move to LD A,(HL)
-            let! a = SBIO.ReadByte hl
-            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l; A = a}}
-        }
+                let address = 0xFF00us + uint16 n
+                do! SBIO.WriteByte address mb.CPU.A
+            }
+
+        let LD_A_n n =
+            sb {
+                let! mb = SB.Get
+
+                let address = 0xFF00us + uint16 n
+                let! A = SBIO.ReadByte address
+
+                do! SB.Put { mb with CPU.A = A }
+            }
+
+        let LD_HL_n n =
+            sb {
+                let! mb = SB.Get
+
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                do! SBIO.WriteByte hl n
+            }
+
+        let LDD_A_HL () =
+            sb {
+                do! LD_A_HL()
+                do! ShortALU.DEC_HL()
+            }
+
+        let LDD_HL_A () =
+            sb {
+                do! LD_HL_A()
+                do! ShortALU.DEC_HL()
+            }
+
+        let LDI_A_HL () =
+            sb {
+                let! mb = SB.Get
+
+                //TODO: Move to INC HL
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let struct (h, l) = SBUtils.toBytes (hl + 1us)
+
+                // TODO: Move to LD A,(HL)
+                let! a = SBIO.ReadByte hl
+                do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l; A = a } }
+            }
 
     module ShortLoads =
 
-        let LD_nn set nn = sb {
-            let! mb = SB.Get
-            let struct (h: byte, l: byte) = SBUtils.toBytes nn
-            do! SB.Put { mb with CPU = set mb.CPU h l }
-        }
+        let LD_nn set nn =
+            sb {
+                let! mb = SB.Get
+                let struct (h: byte, l: byte) = SBUtils.toBytes nn
+                do! SB.Put { mb with CPU = set mb.CPU h l }
+            }
 
-        let LD_BC = LD_nn (fun cpu b c -> { cpu with B = b; C = c })
-        let LD_DE = LD_nn (fun cpu d e -> { cpu with D = d; E = e })
-        let LD_HL = LD_nn (fun cpu h l -> { cpu with H = h; L = l })
+        let LD_BC = LD_nn(fun cpu b c -> { cpu with B = b; C = c })
+        let LD_DE = LD_nn(fun cpu d e -> { cpu with D = d; E = e })
+        let LD_HL = LD_nn(fun cpu h l -> { cpu with H = h; L = l })
 
-        let LD_SP nn = sb {
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with SP = nn }}
-        }
+        let LD_SP nn =
+            sb {
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU.SP = nn }
+            }
 
-        let LD_nn_SP nn = sb {
-            let! mb = SB.Get
-            do! SBIO.WriteShort nn mb.CPU.SP
-        }
+        let LD_nn_SP nn =
+            sb {
+                let! mb = SB.Get
+                do! SBIO.WriteShort nn mb.CPU.SP
+            }
 
-        let PUSH nn = sb {
-            let! mb = SB.Get
+        let PUSH nn =
+            sb {
+                let! mb = SB.Get
 
-            do! SBIO.WriteShort (mb.CPU.SP - 1us) nn
+                do! SBIO.WriteShort (mb.CPU.SP - 1us) nn
 
-            let sp = mb.CPU.SP - 2us            
-            do! SB.Put { mb with CPU = { mb.CPU with SP = sp }} 
-        } 
+                let sp = mb.CPU.SP - 2us
+                do! SB.Put { mb with CPU.SP = sp }
+            }
 
-        let PUSH_AF () = sb {
-            let! mb = SB.Get 
+        let PUSH_AF () =
+            sb {
+                let! mb = SB.Get
 
-            let af = SBUtils.toShort mb.CPU.A mb.CPU.F
-            do! PUSH af
-        }
+                let af = SBUtils.toShort mb.CPU.A mb.CPU.F
+                do! PUSH af
+            }
 
-        let PUSH_BC () = sb {
-            let! mb = SB.Get
+        let PUSH_BC () =
+            sb {
+                let! mb = SB.Get
 
-            let bc = SBUtils.toShort mb.CPU.B mb.CPU.C
-            do! PUSH bc
-        }
+                let bc = SBUtils.toShort mb.CPU.B mb.CPU.C
+                do! PUSH bc
+            }
 
-        let PUSH_DE () = sb {
-            let! mb = SB.Get
+        let PUSH_DE () =
+            sb {
+                let! mb = SB.Get
 
-            let de = SBUtils.toShort mb.CPU.D mb.CPU.E
-            do! PUSH de
-        }
+                let de = SBUtils.toShort mb.CPU.D mb.CPU.E
+                do! PUSH de
+            }
 
-        let PUSH_HL () = sb {
-            let! mb = SB.Get
+        let PUSH_HL () =
+            sb {
+                let! mb = SB.Get
 
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            do! PUSH hl
-        }
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                do! PUSH hl
+            }
 
-        let POP = sb {
-            let! mb = SB.Get
+        let POP =
+            sb {
+                let! mb = SB.Get
 
-            let! top = SBIO.ReadShort (mb.CPU.SP + 1us) 
+                let! top = SBIO.ReadShort(mb.CPU.SP + 1us)
 
-            let sp = mb.CPU.SP
-            do! SB.Put { mb with CPU = { mb.CPU with SP = sp + 2us }}
+                let sp = mb.CPU.SP
+                do! SB.Put { mb with CPU.SP = sp + 2us }
 
-            return top
-        }
+                return top
+            }
 
-        let POP_AF () = sb {
-            let! top = POP
-            let struct (a, f) = SBUtils.toBytes top
+        let POP_AF () =
+            sb {
+                let! top = POP
+                let struct (a, f) = SBUtils.toBytes top
 
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with A = a; F = f &&& 0xF0uy }}
-        }
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU = { mb.CPU with A = a; F = f &&& 0xF0uy } }
+            }
 
-        let POP_BC () = sb {
-            let! top = POP
-            let struct (b, c) = SBUtils.toBytes top
+        let POP_BC () =
+            sb {
+                let! top = POP
+                let struct (b, c) = SBUtils.toBytes top
 
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with B = b; C = c }}
-        }
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU = { mb.CPU with B = b; C = c } }
+            }
 
-        let POP_DE () = sb {
-            let! top = POP
-            let struct (d, e) = SBUtils.toBytes top
+        let POP_DE () =
+            sb {
+                let! top = POP
+                let struct (d, e) = SBUtils.toBytes top
 
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with D = d; E = e }}
-        }
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU = { mb.CPU with D = d; E = e } }
+            }
 
-        let POP_HL () = sb {
-            let! top = POP
-            let struct (h, l) = SBUtils.toBytes top
-            
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l }}
-        }
+        let POP_HL () =
+            sb {
+                let! top = POP
+                let struct (h, l) = SBUtils.toBytes top
+
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU = { mb.CPU with H = h; L = l } }
+            }
 
     module Jump =
-        let JP nn = sb {
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with PC = nn}}
-        }
+        let JP nn =
+            sb {
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU.PC = nn }
+            }
 
-        let JP_OP op flag nn = sb {
-            let! mb = SB.Get
+        let JP_OP op flag nn =
+            sb {
+                let! mb = SB.Get
 
-            if op (mb.CPU.F &&& byte flag) 0uy then
-                do! JP nn
-        }
+                if op (mb.CPU.F &&& byte flag) 0uy then
+                    do! JP nn
+            }
 
-        let JP_N = JP_OP (=) 
-        let JP_ = JP_OP (<>)
+        let JP_N = JP_OP(=)
+        let JP_ = JP_OP(<>)
 
         let JP_NZ nn = JP_N Flags.Z nn
         let JP_Z nn = JP_ Flags.Z nn
 
-        let JP_HL () = sb {
-            let! mb = SB.Get
-            let address = SBUtils.toShort mb.CPU.H mb.CPU.L
-            do! JP address
-        }
+        let JP_HL () =
+            sb {
+                let! mb = SB.Get
+                let address = SBUtils.toShort mb.CPU.H mb.CPU.L
+                do! JP address
+            }
 
-        let JR n = sb {
-            let! mb = SB.Get
+        let JR n =
+            sb {
+                let! mb = SB.Get
 
-            let address = uint16 (int mb.CPU.PC + int (sbyte n))
-            do! JP address
-        }
+                let address = uint16 (int mb.CPU.PC + int (sbyte n))
+                do! JP address
+            }
 
-        let JR_OP op flag n = sb {
-            let! mb = SB.Get
+        let JR_OP op flag n =
+            sb {
+                let! mb = SB.Get
 
-            if op (mb.CPU.F &&& byte flag) 0uy then
-                do! JR n
-        }
+                if op (mb.CPU.F &&& byte flag) 0uy then
+                    do! JR n
+            }
 
         // Reset
-        let JR_N = JR_OP (=)
+        let JR_N = JR_OP(=)
         // Set
-        let JR_ = JR_OP (<>)
+        let JR_ = JR_OP(<>)
 
         let JR_NZ = JR_N Flags.Z
         let JR_Z = JR_ Flags.Z
         let JR_NC = JR_N Flags.C
         let JR_C = JR_ Flags.C
 
-        let RST ((), arg) = sb {
-            let! mb = SB.Get
+        let RST ((), arg) =
+            sb {
+                let! mb = SB.Get
 
-            let address: uint16 = uint16 arg
-            do! ShortLoads.PUSH mb.CPU.PC
-            do! JP address
-        }
+                let address: uint16 = uint16 arg
+                do! ShortLoads.PUSH mb.CPU.PC
+                do! JP address
+            }
 
     module Bit =
         let RES_OP r b = r &&& ~~~(1uy <<< int b)
-        
-        let RES getR setR b = sb {            
-            let! mb = SB.Get
 
-            let r = getR mb.CPU
-            let x = RES_OP r b
+        let RES getR setR b =
+            sb {
+                let! mb = SB.Get
 
-            do! SB.Put { mb with CPU = setR mb.CPU x }
-        }
+                let r = getR mb.CPU
+                let x = RES_OP r b
 
-        let RES_0_A () = RES (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x }) 0
-        
-        let RES_HL b = sb {
-            let! mb = SB.Get
-            
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let! r = SBIO.ReadByte hl 
-            
-            let x = RES_OP r b
-           
-            do! SBIO.WriteByte hl x
-        }
-        
+                do! SB.Put { mb with CPU = setR mb.CPU x }
+            }
+
+        let RES_0_A () =
+            RES (_.A) (fun cpu x -> { cpu with A = x }) 0
+
+        let RES_HL b =
+            sb {
+                let! mb = SB.Get
+
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let! r = SBIO.ReadByte hl
+
+                let x = RES_OP r b
+
+                do! SBIO.WriteByte hl x
+            }
+
         let RES_0_HL () = RES_HL 0
         let RES_7_HL () = RES_HL 7
-       
+
         let BIT_OP r b = r &&& (1uy <<< b)
-        
-        let BIT get b = sb {
-            let! mb = SB.Get
-            
-            let r = get mb.CPU
-            let x = BIT_OP r b
-            
-            do! SetIf Flags.Z (x = 0uy)
-            do! Reset Flags.N
-            do! Set Flags.H
-        }
-        
-        let BIT_2_A () = BIT (fun cpu -> cpu.A) 2
-        let BIT_3_A () = BIT (fun cpu -> cpu.A) 3
-        let BIT_5_A () = BIT (fun cpu -> cpu.A) 5
-        let BIT_6_A () = BIT (fun cpu -> cpu.A) 6
-        let BIT_7_A () = BIT (fun cpu -> cpu.A) 7
-    
-        let BIT_0_B () = BIT (fun cpu -> cpu.B) 0
-        let BIT_1_B () = BIT (fun cpu -> cpu.B) 1
-        let BIT_2_B () = BIT (fun cpu -> cpu.B) 2
-        let BIT_3_B () = BIT (fun cpu -> cpu.B) 3
-        let BIT_4_B () = BIT (fun cpu -> cpu.B) 4
-        let BIT_5_B () = BIT (fun cpu -> cpu.B) 5
-        let BIT_6_B () = BIT (fun cpu -> cpu.B) 6
-        let BIT_7_B () = BIT (fun cpu -> cpu.B) 7
-        
-        let BIT_0_C () = BIT (fun cpu -> cpu.C) 0
-        let BIT_4_C () = BIT (fun cpu -> cpu.C) 4
-        let BIT_5_C () = BIT (fun cpu -> cpu.C) 5
-        
-        let BIT_HL b = sb {
-            let! mb = SB.Get
-            
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let! r = SBIO.ReadByte hl
-            
-            let x = BIT_OP r b
-            
-            do! SBIO.WriteByte hl x
-        }
-        
+
+        let BIT get b =
+            sb {
+                let! mb = SB.Get
+
+                let r = get mb.CPU
+                let x = BIT_OP r b
+
+                do! SetIf Flags.Z (x = 0uy)
+                do! Reset Flags.N
+                do! Set Flags.H
+            }
+
+        let BIT_2_A () = BIT (_.A) 2
+        let BIT_3_A () = BIT (_.A) 3
+        let BIT_5_A () = BIT (_.A) 5
+        let BIT_6_A () = BIT (_.A) 6
+        let BIT_7_A () = BIT (_.A) 7
+
+        let BIT_0_B () = BIT (_.B) 0
+        let BIT_1_B () = BIT (_.B) 1
+        let BIT_2_B () = BIT (_.B) 2
+        let BIT_3_B () = BIT (_.B) 3
+        let BIT_4_B () = BIT (_.B) 4
+        let BIT_5_B () = BIT (_.B) 5
+        let BIT_6_B () = BIT (_.B) 6
+        let BIT_7_B () = BIT (_.B) 7
+
+        let BIT_0_C () = BIT (_.C) 0
+        let BIT_4_C () = BIT (_.C) 4
+        let BIT_5_C () = BIT (_.C) 5
+
+        let BIT_HL b =
+            sb {
+                let! mb = SB.Get
+
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let! r = SBIO.ReadByte hl
+
+                let x = BIT_OP r b
+
+                do! SBIO.WriteByte hl x
+            }
+
         let BIT_7_HL () = BIT_HL 7
-        
+
         let SET_OP r b = r ||| (1uy <<< b)
-        
-        let SET get set b = sb {
-            let! mb = SB.Get
-            
-            let r = get mb.CPU
-            let x = SET_OP r b
-            
-            do! SB.Put { mb with CPU = set mb.CPU x }
-        }
-        
-        let SET_6_A () = SET (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x }) 6
-        
-        let SET_HL b = sb {
-            let! mb = SB.Get
-            
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let! r = SBIO.ReadByte hl
-            
-            let x = SET_OP r b
-            do! SBIO.WriteByte hl x
-        }
-        
+
+        let SET get set b =
+            sb {
+                let! mb = SB.Get
+
+                let r = get mb.CPU
+                let x = SET_OP r b
+
+                do! SB.Put { mb with CPU = set mb.CPU x }
+            }
+
+        let SET_6_A () =
+            SET (_.A) (fun cpu x -> { cpu with A = x }) 6
+
+        let SET_HL b =
+            sb {
+                let! mb = SB.Get
+
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let! r = SBIO.ReadByte hl
+
+                let x = SET_OP r b
+                do! SBIO.WriteByte hl x
+            }
+
         let SET_7_HL () = SET_HL 7
-    
+
     module Calls =
-        let CALL nn = sb {
-            let! mb = SB.Get
-            do! ShortLoads.PUSH mb.CPU.PC 
-            do! Jump.JP nn
-        }
+        let CALL nn =
+            sb {
+                let! mb = SB.Get
+                do! ShortLoads.PUSH mb.CPU.PC
+                do! Jump.JP nn
+            }
 
-        let CALL_Z nn = sb {
-            let! mb = SB.Get
+        let CALL_Z nn =
+            sb {
+                let! mb = SB.Get
 
-            if mb.CPU.F &&& byte Flags.Z <> 0uy then
-                do! CALL nn
-        }
+                if mb.CPU.F &&& byte Flags.Z <> 0uy then
+                    do! CALL nn
+            }
 
     module Misc =
-        let SWAP_A () = sb {
-            let! mb = SB.Get
-            let a = mb.CPU.A
+        let SWAP_A () =
+            sb {
+                let! mb = SB.Get
+                let a = mb.CPU.A
 
-            let lNibble = a &&& 0b1111uy
-            let hNibble = a >>> 4
+                let lNibble = a &&& 0b1111uy
+                let hNibble = a >>> 4
 
-            let s = (lNibble <<< 4) ||| hNibble
+                let s = (lNibble <<< 4) ||| hNibble
 
-            do! SB.Put { mb with CPU = { mb.CPU with A = s }}
+                do! SB.Put { mb with CPU.A = s }
 
-            do! SetIf Flags.Z (s = 0uy)
-            do! Reset Flags.N
-            do! Reset Flags.H
-            do! Reset Flags.C
-        }
+                do! SetIf Flags.Z (s = 0uy)
+                do! Reset Flags.N
+                do! Reset Flags.H
+                do! Reset Flags.C
+            }
 
-        let SCF () = sb {
-            do! Reset Flags.N
-            do! Reset Flags.H
-            do! Set Flags.C
-        }
+        let SCF () =
+            sb {
+                do! Reset Flags.N
+                do! Reset Flags.H
+                do! Set Flags.C
+            }
 
-        let DAA () = sb {
-            printf "TODO: Implement DAA later. \n"
-        }
+        let DAA () =
+            sb { printf "TODO: Implement DAA later. \n" }
 
-        let CPL () = sb {
-            let! mb = SB.Get
-            let a = ~~~mb.CPU.A
+        let CPL () =
+            sb {
+                let! mb = SB.Get
+                let a = ~~~mb.CPU.A
 
-            do! SB.Put { mb with CPU = { mb.CPU with A = a }}
-            do! Set Flags.N
-            do! Set Flags.H
-        }
+                do! SB.Put { mb with CPU.A = a }
+                do! Set Flags.N
+                do! Set Flags.H
+            }
 
-        let STOP () = sb {
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with Stop = true }}
-        }
+        let STOP () =
+            sb {
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU.Stop = true }
+            }
 
-        let DI () = sb {
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with IME = Disable } }
-        }
+        let DI () =
+            sb {
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU.IME = Disable }
+            }
 
-        let IE () = sb {
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with IME = Enable }}
-        }
+        let IE () =
+            sb {
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU.IME = Enable }
+            }
 
-    module Returns = 
-        let RET () = sb {
-            let! address = ShortLoads.POP
-            do! Jump.JP address
-        }
+    module Returns =
+        let RET () =
+            sb {
+                let! address = ShortLoads.POP
+                do! Jump.JP address
+            }
 
-        let RET_OP op flag = sb {
-            let! mb = SB.Get
+        let RET_OP op flag =
+            sb {
+                let! mb = SB.Get
 
-            if op (mb.CPU.F &&& byte flag) 0uy then
-                do! RET ()
-        }
+                if op (mb.CPU.F &&& byte flag) 0uy then
+                    do! RET()
+            }
 
-        let RET_N = RET_OP (=) 
-        let RET_ = RET_OP (<>)
+        let RET_N = RET_OP(=)
+        let RET_ = RET_OP(<>)
 
         let RET_NZ () = RET_N Flags.Z
         let RET_Z () = RET_ Flags.Z
         let RET_NC () = RET_N Flags.C
         let RET_C () = RET_ Flags.C
-        
-        let RETI () = sb {
-            do! Misc.IE ()
-            do! RET ()
-        }
+
+        let RETI () =
+            sb {
+                do! Misc.IE()
+                do! RET()
+            }
 
     module ByteALU =
 
-        let private IncFlags R r = sb {
-            do! SetIf Flags.Z (r = 0)
-            do! Reset Flags.N
-            do! SetIf Flags.H (R &&& 0xFuy = 0xFuy)
-        }
+        let private IncFlags R r =
+            sb {
+                do! SetIf Flags.Z (r = 0)
+                do! Reset Flags.N
+                do! SetIf Flags.H (R &&& 0xFuy = 0xFuy)
+            }
 
         // TODO: Merge with & parametrize DEC_n?
-        let private INC_n getN setN = sb {
-            let! mb = SB.Get
-            let n = getN mb.CPU
-            let x = int n + 1
+        let private INC_n getN setN =
+            sb {
+                let! mb = SB.Get
+                let n = getN mb.CPU
+                let x = int n + 1
 
-            do! SB.Put { mb with CPU = setN mb.CPU (byte x)}
-            do! IncFlags n x
-        }
+                do! SB.Put { mb with CPU = setN mb.CPU (byte x) }
+                do! IncFlags n x
+            }
 
-        let INC_A () = INC_n (fun cpu -> cpu.A) (fun cpu a -> { cpu with A = a})
-        let INC_C () = INC_n (fun cpu -> cpu.C) (fun cpu c -> { cpu with C = c })
-        let INC_D () = INC_n (fun cpu -> cpu.D) (fun cpu d -> { cpu with D = d })
-        let INC_E () = INC_n (fun cpu -> cpu.E) (fun cpu e -> { cpu with E = e })
-        let INC_H () = INC_n (fun cpu -> cpu.H) (fun cpu h -> { cpu with H = h })
-        let INC_L () = INC_n (fun cpu -> cpu.L) (fun cpu l -> { cpu with L = l })
+        let INC_A () =
+            INC_n (_.A) (fun cpu a -> { cpu with A = a })
 
-        let private DecFlags R r = sb {
-            do! SetIf Flags.Z (r = 0)
-            do! Set Flags.N
-            do! SetIf Flags.H (R &&& 0xFuy = 0uy)
-        }
+        let INC_C () =
+            INC_n (_.C) (fun cpu c -> { cpu with C = c })
 
-        let private DEC_n getN setN = sb {            
-            let! mb = SB.Get
-            let n = getN mb.CPU
-            let x = int n - 1
-            
-            do! SB.Put { mb with CPU = setN mb.CPU (byte x) }
-            do! DecFlags n x
-        }
+        let INC_D () =
+            INC_n (_.D) (fun cpu d -> { cpu with D = d })
 
-        let DEC_A () = DEC_n (fun cpu -> cpu.A) (fun cpu x -> { cpu with A = x })
-        let DEC_B () = DEC_n (fun cpu -> cpu.B) (fun cpu x -> { cpu with B = x })
-        let DEC_C () = DEC_n (fun cpu -> cpu.C) (fun cpu x -> { cpu with C = x })
-        let DEC_D () = DEC_n (fun cpu -> cpu.D) (fun cpu x -> { cpu with D = x })
-        let DEC_E () = DEC_n (fun cpu -> cpu.E) (fun cpu x -> { cpu with E = x })
-        let DEC_H () = DEC_n (fun cpu -> cpu.H) (fun cpu x -> { cpu with H = x })
-        let DEC_L () = DEC_n (fun cpu -> cpu.L) (fun cpu x -> { cpu with L = x })
+        let INC_E () =
+            INC_n (_.E) (fun cpu e -> { cpu with E = e })
 
-        let INC_DEC_addr_HL op opFlags = sb {
-            let! mb = SB.Get
+        let INC_H () =
+            INC_n (_.H) (fun cpu h -> { cpu with H = h })
 
-            let addr = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let! R = SBIO.ReadByte addr
-            let r = op (int R) 1
+        let INC_L () =
+            INC_n (_.L) (fun cpu l -> { cpu with L = l })
 
-            do! SBIO.WriteByte addr (byte r)
-            do! opFlags R r
-        }
+        let private DecFlags R r =
+            sb {
+                do! SetIf Flags.Z (r = 0)
+                do! Set Flags.N
+                do! SetIf Flags.H (R &&& 0xFuy = 0uy)
+            }
+
+        let private DEC_n getN setN =
+            sb {
+                let! mb = SB.Get
+                let n = getN mb.CPU
+                let x = int n - 1
+
+                do! SB.Put { mb with CPU = setN mb.CPU (byte x) }
+                do! DecFlags n x
+            }
+
+        let DEC_A () =
+            DEC_n (_.A) (fun cpu x -> { cpu with A = x })
+
+        let DEC_B () =
+            DEC_n (_.B) (fun cpu x -> { cpu with B = x })
+
+        let DEC_C () =
+            DEC_n (_.C) (fun cpu x -> { cpu with C = x })
+
+        let DEC_D () =
+            DEC_n (_.D) (fun cpu x -> { cpu with D = x })
+
+        let DEC_E () =
+            DEC_n (_.E) (fun cpu x -> { cpu with E = x })
+
+        let DEC_H () =
+            DEC_n (_.H) (fun cpu x -> { cpu with H = x })
+
+        let DEC_L () =
+            DEC_n (_.L) (fun cpu x -> { cpu with L = x })
+
+        let INC_DEC_addr_HL op opFlags =
+            sb {
+                let! mb = SB.Get
+
+                let addr = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let! R = SBIO.ReadByte addr
+                let r = op (int R) 1
+
+                do! SBIO.WriteByte addr (byte r)
+                do! opFlags R r
+            }
 
         let INC_addr_HL () = INC_DEC_addr_HL (+) IncFlags
         let DEC_addr_HL () = INC_DEC_addr_HL (-) DecFlags
 
-        let ADD_n n = sb {
-            let! mb = SB.Get
+        let ADD_n n =
+            sb {
+                let! mb = SB.Get
 
-            let a = int mb.CPU.A + int n
-            do! SB.Put { mb with CPU = { mb.CPU with A = byte a }}
+                let a = int mb.CPU.A + int n
+                do! SB.Put { mb with CPU.A = byte a }
 
-            do! SetIf Flags.Z (a = 0)
-            do! Reset Flags.N
-            do! SetIf Flags.H ((int mb.CPU.A &&& 0xF) + (int n &&& 0xF) > 0xF)
-            do! SetIf Flags.C (a > 0xFF)
-        }
+                do! SetIf Flags.Z (a = 0)
+                do! Reset Flags.N
+                do! SetIf Flags.H ((int mb.CPU.A &&& 0xF) + (int n &&& 0xF) > 0xF)
+                do! SetIf Flags.C (a > 0xFF)
+            }
 
-        let ADD_HL () = sb {
-            let! mb = SB.Get
-            
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let! n = SBIO.ReadByte hl
+        let ADD_HL () =
+            sb {
+                let! mb = SB.Get
 
-            do! ADD_n n
-        }
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let! n = SBIO.ReadByte hl
 
-        let ADC n = sb {
-            let! mb = SB.Get
+                do! ADD_n n
+            }
 
-            let carry = (mb.CPU.F &&& byte Flags.C)
-            let a = mb.CPU.A
-            let r = int a + int n + int carry
+        let ADC n =
+            sb {
+                let! mb = SB.Get
 
-            do! SB.Put { mb with CPU = { mb.CPU with A = byte r}}
+                let carry = (mb.CPU.F &&& byte Flags.C)
+                let a = mb.CPU.A
+                let r = int a + int n + int carry
 
-            do! SetIf Flags.Z (r = 0)
-            do! Reset Flags.N
-            do! SetIf Flags.H (int mb.CPU.A &&& 0xF + int n &&& 0xF > 0xF)
-            do! SetIf Flags.C (r > 0xFF)
-        }
+                do! SB.Put { mb with CPU.A = byte r }
 
-        let ADC_HL () = sb {
-            let! mb = SB.Get
-            
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            let! n = SBIO.ReadByte hl
+                do! SetIf Flags.Z (r = 0)
+                do! Reset Flags.N
+                do! SetIf Flags.H (int mb.CPU.A &&& 0xF + int n &&& 0xF > 0xF)
+                do! SetIf Flags.C (r > 0xFF)
+            }
 
-            do! ADC n
-        }
-        
-        let SUB_base n = sb {
-            let! mb = SB.Get
+        let ADC_HL () =
+            sb {
+                let! mb = SB.Get
 
-            let A = mb.CPU.A
-            let r = int A - int n
-            
-            do! SetIf Flags.Z (r = 0)
-            do! Set Flags.N
-            // Unclear if borrow or "no" borrow.
-            do! SetIf Flags.H ((int A &&& 0xF) < (int n &&& 0xF))
-            do! SetIf Flags.C (A < n)
-            
-            return r
-        }
-        
-        let SUB_n n = sb {
-            let! r = SUB_base n
-            
-            let! mb = SB.Get
-            do! SB.Put { mb with CPU = { mb.CPU with A = byte r }}
-        }
-        
-        let SUB_HL () = sb {
-            let! mb = SB.Get
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            
-            let! n = SBIO.ReadByte hl
-            
-            do! SUB_n n
-        }
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+                let! n = SBIO.ReadByte hl
 
-        let AND n = sb {
-            let! mb = SB.Get
+                do! ADC n
+            }
 
-            let a = mb.CPU.A &&& n
+        let SUB_base n =
+            sb {
+                let! mb = SB.Get
 
-            do! SB.Put { mb with CPU = { mb.CPU with A = a }}
+                let A = mb.CPU.A
+                let r = int A - int n
 
-            do! SetIf Flags.Z (a = 0uy)
-            do! Reset Flags.N
-            do! Set Flags.H
-            do! Reset Flags.C
-        }
+                do! SetIf Flags.Z (r = 0)
+                do! Set Flags.N
+                // Unclear if borrow or "no" borrow.
+                do! SetIf Flags.H ((int A &&& 0xF) < (int n &&& 0xF))
+                do! SetIf Flags.C (A < n)
 
-        let OR rg = sb {
-            let! mb = SB.Get
+                return r
+            }
 
-            let r = mb.CPU.A ||| rg
+        let SUB_n n =
+            sb {
+                let! r = SUB_base n
 
-            do! SB.Put { mb with CPU = { mb.CPU with A = r }}
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU.A = byte r }
+            }
 
-            do! SetIf Flags.Z (r = 0uy)
-            do! Reset Flags.N
-            do! Reset Flags.H
-            do! Reset Flags.C
-        }
+        let SUB_HL () =
+            sb {
+                let! mb = SB.Get
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
 
-        let XOR rg = sb {
-            let! mb = SB.Get
+                let! n = SBIO.ReadByte hl
 
-            let r = mb.CPU.A ^^^ rg
+                do! SUB_n n
+            }
 
-            do! SB.Put {mb with CPU = { mb.CPU with A = r }}
+        let AND n =
+            sb {
+                let! mb = SB.Get
 
-            do! SetIf Flags.Z (r = 0uy)
-            do! Reset Flags.N
-            do! Reset Flags.H
-            do! Reset Flags.C
-        }
-        
-        let CP_n n = sb {
-            let! _ = SUB_base n
-            ()
-        }
-        
-        let CP_HL () = sb {
-            let! mb = SB.Get
-            let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
-            
-            let! n = SBIO.ReadByte hl
-            do! CP_n n
-        }
+                let a = mb.CPU.A &&& n
+
+                do! SB.Put { mb with CPU.A = a }
+
+                do! SetIf Flags.Z (a = 0uy)
+                do! Reset Flags.N
+                do! Set Flags.H
+                do! Reset Flags.C
+            }
+
+        let OR rg =
+            sb {
+                let! mb = SB.Get
+
+                let r = mb.CPU.A ||| rg
+
+                do! SB.Put { mb with CPU.A = r }
+
+                do! SetIf Flags.Z (r = 0uy)
+                do! Reset Flags.N
+                do! Reset Flags.H
+                do! Reset Flags.C
+            }
+
+        let XOR rg =
+            sb {
+                let! mb = SB.Get
+
+                let r = mb.CPU.A ^^^ rg
+
+                do! SB.Put { mb with CPU.A = r }
+
+                do! SetIf Flags.Z (r = 0uy)
+                do! Reset Flags.N
+                do! Reset Flags.H
+                do! Reset Flags.C
+            }
+
+        let CP_n n =
+            sb {
+                let! _ = SUB_base n
+                ()
+            }
+
+        let CP_HL () =
+            sb {
+                let! mb = SB.Get
+                let hl = SBUtils.toShort mb.CPU.H mb.CPU.L
+
+                let! n = SBIO.ReadByte hl
+                do! CP_n n
+            }
 
     module Control =
         let NOP () = sb { () }
 
     module RotatesShifts =
-        let RLCA () = sb {
-            let! mb = SB.Get
-            
-            // TODO: Move to param when implementing RLA
-            let c = mb.CPU.A >>> 7
-            let a = ((mb.CPU.A <<< 1) &&& ~~~0b1uy) ||| c
-            
-            do! SB.Put { mb with CPU = { mb.CPU with A = a } }
-            
-            do! SetIf Flags.Z (a = 0uy)
-            do! Reset Flags.N
-            do! Reset Flags.H
-            do! SetIf Flags.C (c = 1uy)
-        }
-        let RRA () = sb {
-            let! mb = SB.Get
-            
-            // TODO: Move to param when implementing RRCA 
-            let oc = mb.CPU.F &&& 0x20uy
-            let nc = mb.CPU.A &&& 0b1uy
-            let a = (mb.CPU.A >>> 1) ||| (oc <<< 7)
+        let RLCA () =
+            sb {
+                let! mb = SB.Get
 
-            do! SB.Put { mb with CPU = { mb.CPU with A = a } }
+                // TODO: Move to param when implementing RLA
+                let c = mb.CPU.A >>> 7
+                let a = ((mb.CPU.A <<< 1) &&& ~~~ 0b1uy) ||| c
 
-            do! SetIf Flags.Z (a = 0uy)
-            do! Reset Flags.N
-            do! Reset Flags.H
-            do! SetIf Flags.C (nc = 1uy)
-        }
-        
-        let SLA_A () = sb {
-            let! mb = SB.Get
-            
-            let c = mb.CPU.A <<< 7
-            let a = mb.CPU.A &&& ~~~0b1uy
-            
-            do! SB.Put { mb with CPU = { mb.CPU with A = a }}
-            
-            do! SetIf Flags.Z (a = 0uy)
-            do! Set Flags.N
-            do! Set Flags.H
-            do! SetIf Flags.C (c = 1uy)
-        }
+                do! SB.Put { mb with CPU.A = a }
+
+                do! SetIf Flags.Z (a = 0uy)
+                do! Reset Flags.N
+                do! Reset Flags.H
+                do! SetIf Flags.C (c = 1uy)
+            }
+
+        let RRA () =
+            sb {
+                let! mb = SB.Get
+
+                // TODO: Move to param when implementing RRCA
+                let oc = mb.CPU.F &&& 0x20uy
+                let nc = mb.CPU.A &&& 0b1uy
+                let a = (mb.CPU.A >>> 1) ||| (oc <<< 7)
+
+                do! SB.Put { mb with CPU.A = a }
+
+                do! SetIf Flags.Z (a = 0uy)
+                do! Reset Flags.N
+                do! Reset Flags.H
+                do! SetIf Flags.C (nc = 1uy)
+            }
+
+        let SLA_A () =
+            sb {
+                let! mb = SB.Get
+
+                let c = mb.CPU.A <<< 7
+                let a = mb.CPU.A &&& ~~~ 0b1uy
+
+                do! SB.Put { mb with CPU.A = a }
+
+                do! SetIf Flags.Z (a = 0uy)
+                do! Set Flags.N
+                do! Set Flags.H
+                do! SetIf Flags.C (c = 1uy)
+            }
 
     let internal INSTRUCTIONS =
         SBInstructionTable [ (0x3Euy, (Byte(ByteLoads.LD_A), "LD A,n", 8))
-                             (0x7Fuy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.A)), "LD A,A", 4))
-                             (0x78uy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.B)), "LD A,B", 4))
-                             (0x79uy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.C)), "LD A,C", 4))
-                             (0x7Auy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.D)), "LD A,D", 4))
-                             (0x7Buy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.E)), "LD A,E", 4))
-                             (0x7Cuy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.H)), "LD A,H", 4))
-                             (0x7Duy, (Register(ByteLoads.LD_A, (fun cpu -> cpu.L)), "LD A,L", 4))
+                             (0x7Fuy, (Register(ByteLoads.LD_A, (_.A)), "LD A,A", 4))
+                             (0x78uy, (Register(ByteLoads.LD_A, (_.B)), "LD A,B", 4))
+                             (0x79uy, (Register(ByteLoads.LD_A, (_.C)), "LD A,C", 4))
+                             (0x7Auy, (Register(ByteLoads.LD_A, (_.D)), "LD A,D", 4))
+                             (0x7Buy, (Register(ByteLoads.LD_A, (_.E)), "LD A,E", 4))
+                             (0x7Cuy, (Register(ByteLoads.LD_A, (_.H)), "LD A,H", 4))
+                             (0x7Duy, (Register(ByteLoads.LD_A, (_.L)), "LD A,L", 4))
                              (0x0Auy, (Void(ByteLoads.LD_A_BC), "LD A,(BC)", 8))
                              (0x1Auy, (Void(ByteLoads.LD_A_DE), "LD A,(DE)", 8))
                              (0xFAuy, (Short(ByteLoads.LD_A_nn), "LD A,(nn)", 16))
                              (0x06uy, (Byte(ByteLoads.LD_B), "LD B,n", 8))
-                             (0x47uy, (Register(ByteLoads.LD_B, (fun cpu -> cpu.A)), "LD B,A", 4))
-                             (0x40uy, (Register(ByteLoads.LD_B, (fun cpu -> cpu.B)), "LD B,B", 4))
-                             (0x41uy, (Register(ByteLoads.LD_B, (fun cpu -> cpu.C)), "LD B,C", 4))
+                             (0x47uy, (Register(ByteLoads.LD_B, (_.A)), "LD B,A", 4))
+                             (0x40uy, (Register(ByteLoads.LD_B, (_.B)), "LD B,B", 4))
+                             (0x41uy, (Register(ByteLoads.LD_B, (_.C)), "LD B,C", 4))
                              (0x0Euy, (Byte(ByteLoads.LD_C), "LD C,n", 8))
-                             (0x4Fuy, (Register(ByteLoads.LD_C, (fun cpu -> cpu.A)), "LD C,A", 4))
-                             (0x48uy, (Register(ByteLoads.LD_C, (fun cpu -> cpu.B)), "LD C,B", 4))
+                             (0x4Fuy, (Register(ByteLoads.LD_C, (_.A)), "LD C,A", 4))
+                             (0x48uy, (Register(ByteLoads.LD_C, (_.B)), "LD C,B", 4))
                              (0x16uy, (Byte(ByteLoads.LD_D), "LD D,n", 8))
-                             (0x57uy, (Register(ByteLoads.LD_D, (fun cpu -> cpu.A)), "LD D,A", 4))
-                             (0x50uy, (Register(ByteLoads.LD_D, (fun cpu -> cpu.B)), "LD D,B", 4))
-                             (0x54uy, (Register(ByteLoads.LD_D, (fun cpu -> cpu.H)), "LD D,H", 4))
+                             (0x57uy, (Register(ByteLoads.LD_D, (_.A)), "LD D,A", 4))
+                             (0x50uy, (Register(ByteLoads.LD_D, (_.B)), "LD D,B", 4))
+                             (0x54uy, (Register(ByteLoads.LD_D, (_.H)), "LD D,H", 4))
                              (0x1Euy, (Byte(ByteLoads.LD_E), "LD E,n", 8))
-                             (0x5Fuy, (Register(ByteLoads.LD_E, (fun cpu -> cpu.A)), "LD E,A", 4))
-                             (0x5Duy, (Register(ByteLoads.LD_E, (fun cpu -> cpu.L)), "LD E,L", 4))
-                             (0x67uy, (Register(ByteLoads.LD_H, (fun cpu -> cpu.A)), "LD H,A", 4))
-                             (0x6Fuy, (Register(ByteLoads.LD_L, (fun cpu -> cpu.A)), "LD L,A", 4))
+                             (0x5Fuy, (Register(ByteLoads.LD_E, (_.A)), "LD E,A", 4))
+                             (0x5Duy, (Register(ByteLoads.LD_E, (_.L)), "LD E,L", 4))
+                             (0x67uy, (Register(ByteLoads.LD_H, (_.A)), "LD H,A", 4))
+                             (0x6Fuy, (Register(ByteLoads.LD_L, (_.A)), "LD L,A", 4))
                              (0x26uy, (Byte(ByteLoads.LD_H), "LD H,n", 8))
-                             (0x60uy, (Register(ByteLoads.LD_H, (fun cpu -> cpu.B)), "LD H,B", 4))
-                             (0x61uy, (Register(ByteLoads.LD_H, (fun cpu -> cpu.C)), "LD H,C", 4))
-                             (0x62uy, (Register(ByteLoads.LD_H, (fun cpu -> cpu.D)), "LD H,D", 4))
-                             (0x69uy, (Register(ByteLoads.LD_L, (fun cpu -> cpu.C)), "LD L,C", 4))
-                             (0x6Buy, (Register(ByteLoads.LD_L, (fun cpu -> cpu.E)), "LD L,E", 4))
+                             (0x60uy, (Register(ByteLoads.LD_H, (_.B)), "LD H,B", 4))
+                             (0x61uy, (Register(ByteLoads.LD_H, (_.C)), "LD H,C", 4))
+                             (0x62uy, (Register(ByteLoads.LD_H, (_.D)), "LD H,D", 4))
+                             (0x69uy, (Register(ByteLoads.LD_L, (_.C)), "LD L,C", 4))
+                             (0x6Buy, (Register(ByteLoads.LD_L, (_.E)), "LD L,E", 4))
                              (0x2Euy, (Byte(ByteLoads.LD_L), "LD L,n", 8))
                              (0xE2uy, (Void(ByteLoads.LD_FF00_C_A), "LD (C),A", 8))
                              (0x7Euy, (Void(ByteLoads.LD_A_HL), "LD A,(HL)", 8))
@@ -873,9 +1006,9 @@ module internal SBOpcodes =
                              (0xE0uy, (Byte(ByteLoads.LD_n_A), "LDH (n),A", 12))
                              (0xF0uy, (Byte(ByteLoads.LD_A_n), "LDH A,(n)", 12))
                              (0x12uy, (Void(ByteLoads.LD_DE_A), "LD (DE),A", 8))
-                             (0x71uy, (Register(ByteLoads.LD_HL_n, (fun cpu -> cpu.C)), "LD (HL),C", 8))
-                             (0x72uy, (Register(ByteLoads.LD_HL_n, (fun cpu -> cpu.D)), "LD (HL),D", 8))
-                             (0x73uy, (Register(ByteLoads.LD_HL_n, (fun cpu -> cpu.E)), "LD (HL),E", 8))
+                             (0x71uy, (Register(ByteLoads.LD_HL_n, (_.C)), "LD (HL),C", 8))
+                             (0x72uy, (Register(ByteLoads.LD_HL_n, (_.D)), "LD (HL),D", 8))
+                             (0x73uy, (Register(ByteLoads.LD_HL_n, (_.E)), "LD (HL),E", 8))
                              (0x36uy, (Byte(ByteLoads.LD_HL_n), "LD (HL),n", 12))
                              (0x77uy, (Void(ByteLoads.LD_HL_A), "LD (HL),A", 8))
                              (0x70uy, (Void(ByteLoads.LD_HL_B), "LD (HL),B", 8))
@@ -895,29 +1028,29 @@ module internal SBOpcodes =
                              (0x25uy, (Void(ByteALU.DEC_H), "DEC H", 4))
                              (0x2Duy, (Void(ByteALU.DEC_L), "DEC L", 4))
                              (0x35uy, (Void(ByteALU.DEC_addr_HL), "DEC (HL)", 12))
-                             (0x87uy, (Register(ByteALU.ADD_n, (fun cpu -> cpu.A)), "ADD A,A", 4))
-                             (0x80uy, (Register(ByteALU.ADD_n, (fun cpu -> cpu.B)), "ADD A,B", 4))
-                             (0x82uy, (Register(ByteALU.ADD_n, (fun cpu -> cpu.D)), "ADD A,D", 4))
-                             (0x85uy, (Register(ByteALU.ADD_n, (fun cpu -> cpu.L)), "ADD A,L", 4))
+                             (0x87uy, (Register(ByteALU.ADD_n, (_.A)), "ADD A,A", 4))
+                             (0x80uy, (Register(ByteALU.ADD_n, (_.B)), "ADD A,B", 4))
+                             (0x82uy, (Register(ByteALU.ADD_n, (_.D)), "ADD A,D", 4))
+                             (0x85uy, (Register(ByteALU.ADD_n, (_.L)), "ADD A,L", 4))
                              (0xC6uy, (Byte(ByteALU.ADD_n), "ADD A,n", 8))
                              (0x86uy, (Void(ByteALU.ADD_HL), "ADD (HL)", 8))
-                             (0x89uy, (Register(ByteALU.ADC, (fun cpu -> cpu.C)), "ADC A,C", 4))
+                             (0x89uy, (Register(ByteALU.ADC, (_.C)), "ADC A,C", 4))
                              (0xCEuy, (Byte(ByteALU.ADC), "ADC A,n", 8))
                              (0x8Euy, (Void(ByteALU.ADC_HL), "ADC HL", 8))
                              (0xD6uy, (Byte(ByteALU.SUB_n), "SUB n", 8))
                              (0x96uy, (Void(ByteALU.SUB_HL), "SUB HL", 8))
-                             (0xA7uy, (Register(ByteALU.AND, (fun cpu -> cpu.A)), "AND A", 8))
-                             (0xA1uy, (Register(ByteALU.AND, (fun cpu -> cpu.C)), "AND C", 8))
+                             (0xA7uy, (Register(ByteALU.AND, (_.A)), "AND A", 8))
+                             (0xA1uy, (Register(ByteALU.AND, (_.C)), "AND C", 8))
                              (0xE6uy, (Byte(ByteALU.AND), "AND #", 8))
-                             (0xB0uy, (Register(ByteALU.OR, (fun cpu -> cpu.B)), "OR B", 4))
-                             (0xB1uy, (Register(ByteALU.OR, (fun cpu -> cpu.C)), "OR C", 4))
-                             (0xB2uy, (Register(ByteALU.OR, (fun cpu -> cpu.D)), "OR D", 4))
-                             (0xB5uy, (Register(ByteALU.OR, (fun cpu -> cpu.L)), "OR L", 4))
+                             (0xB0uy, (Register(ByteALU.OR, (_.B)), "OR B", 4))
+                             (0xB1uy, (Register(ByteALU.OR, (_.C)), "OR C", 4))
+                             (0xB2uy, (Register(ByteALU.OR, (_.D)), "OR D", 4))
+                             (0xB5uy, (Register(ByteALU.OR, (_.L)), "OR L", 4))
                              (0xF6uy, (Byte(ByteALU.OR), "OR n", 8))
-                             (0xAFuy, (Register(ByteALU.XOR, (fun cpu -> cpu.A)), "XOR A", 4))
-                             (0xA9uy, (Register(ByteALU.XOR, (fun cpu -> cpu.C)), "XOR C", 4))
+                             (0xAFuy, (Register(ByteALU.XOR, (_.A)), "XOR A", 4))
+                             (0xA9uy, (Register(ByteALU.XOR, (_.C)), "XOR C", 4))
                              (0xEEuy, (Byte(ByteALU.XOR), "XOR n", 8))
-                             (0xB9uy, (Register(ByteALU.CP_n, (fun cpu -> cpu.C)), "CP C", 4))
+                             (0xB9uy, (Register(ByteALU.CP_n, (_.C)), "CP C", 4))
                              (0xBEuy, (Void(ByteALU.CP_HL), "CP HL", 8))
                              (0xFEuy, (Byte(ByteALU.CP_n), "CP n", 8))
 
@@ -952,12 +1085,12 @@ module internal SBOpcodes =
                              (0x08uy, (Short(ShortLoads.LD_nn_SP), "LD (nn),SP", 20))
                              (0xF5uy, (Void(ShortLoads.PUSH_AF), "PUSH AF", 16))
                              (0xC5uy, (Void(ShortLoads.PUSH_BC), "PUSH BC", 16))
-                             (0xD5uy, (Void(ShortLoads.PUSH_DE), "PUSH DE",  16))
+                             (0xD5uy, (Void(ShortLoads.PUSH_DE), "PUSH DE", 16))
                              (0xE5uy, (Void(ShortLoads.PUSH_HL), "PUSH HL", 16))
-                             (0xF1uy, (Void(ShortLoads.POP_AF), "POP AF",   12))
-                             (0xC1uy, (Void(ShortLoads.POP_BC), "POP BC",   12))
-                             (0xD1uy, (Void(ShortLoads.POP_DE), "POP DE",   12))
-                             (0xE1uy, (Void(ShortLoads.POP_HL), "POP HL",   12))
+                             (0xF1uy, (Void(ShortLoads.POP_AF), "POP AF", 12))
+                             (0xC1uy, (Void(ShortLoads.POP_BC), "POP BC", 12))
+                             (0xD1uy, (Void(ShortLoads.POP_DE), "POP DE", 12))
+                             (0xE1uy, (Void(ShortLoads.POP_HL), "POP HL", 12))
 
                              (0x09uy, (Void(ShortALU.ADD_HL_BC), "ADD HL,BC", 8))
                              (0x19uy, (Void(ShortALU.ADD_HL_DE), "ADD HL,DE", 8))
@@ -980,7 +1113,7 @@ module internal SBOpcodes =
                              (0x07uy, (Void(RotatesShifts.RLCA), "RLCA", 4))
                              (0x1Fuy, (Void(RotatesShifts.RRA), "RRA", 4)) ]
 
-    let internal CB_EXTENSIONS = 
+    let internal CB_EXTENSIONS =
         SBInstructionTable [ (0x87uy, (Void(Bit.RES_0_A), "RES 0,A", 8))
                              (0x86uy, (Void(Bit.RES_0_HL), "RES 0,(HL)", 8))
                              (0xBEuy, (Void(Bit.RES_7_HL), "RES 7,(HL)", 8))
@@ -1003,4 +1136,4 @@ module internal SBOpcodes =
                              (0x6Fuy, (Void(Bit.BIT_5_A), "BIT 5,A", 8))
                              (0x77uy, (Void(Bit.BIT_6_A), "BIT 6,A", 8))
                              (0x7Fuy, (Void(Bit.BIT_7_A), "BIT 7,A", 8))
-                             (0xFEuy, (Void(Bit.SET_7_HL), "SET 7,(HL)", 8))]
+                             (0xFEuy, (Void(Bit.SET_7_HL), "SET 7,(HL)", 8)) ]

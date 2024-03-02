@@ -3,7 +3,11 @@
 open System.Runtime.CompilerServices
 
 [<Struct; IsReadOnly>]
-type SBMb = { CPU: SBCpu; MMU: SBMmu; GPU: SBGpu; Joypad: byte }
+type SBMb =
+    { CPU: SBCpu
+      MMU: SBMmu
+      GPU: SBGpu
+      Joypad: byte }
 
 module SBMbFactory =
     let CreateSBMb rom =

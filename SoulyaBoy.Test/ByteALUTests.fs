@@ -19,7 +19,7 @@ module ByteALUTests =
             let msb = SBOpcodes.Execute opcode isb
 
             Assert.AreEqual(0b1100_0000uy, msb.CPU.F)
-            
+
     [<Test>]
     let Test_CP_n_carry () =
         Util.createTestSB
@@ -32,4 +32,3 @@ module ByteALUTests =
             let msb = SBOpcodes.Execute opcode isb
 
             Assert.AreEqual(0b0101_0000uy, msb.CPU.F)
-            

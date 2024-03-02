@@ -3,7 +3,7 @@
 module SBUtils =
     let internal toShort (high: byte) (low: byte) =
         // Important to cast else bytes will wrap with <<< shift.
-        uint16 (high) <<< 8 ||| uint16 (low)
+        uint16 high <<< 8 ||| uint16 low
 
 
     let internal toBytes short =
@@ -12,6 +12,6 @@ module SBUtils =
         struct (high, low)
 
     let internal bind f arg =
-        match arg with 
+        match arg with
         | Some s -> f s
         | None -> None
