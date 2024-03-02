@@ -17,9 +17,8 @@ module SBMmuFactory =
     let internal CreateMMU (rom: byte array) =
 
         let io = Array.zeroCreate 128
-        
-        let seedIO address value = 
-          io[address - 0xFF00] <- value
+
+        let seedIO address value = io[address - 0xFF00] <- value
 
         seedIO 0xFF00 0xCFuy
         seedIO 0xFF10 0x80uy
