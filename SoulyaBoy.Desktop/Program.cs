@@ -19,7 +19,7 @@ public static class Program
 
     private static readonly Stopwatch ExecutionStopwatch = new();
     private static int _executionTimesIndex;
-    private const int ExecutionTimeSamples = 1000;
+    private const int ExecutionTimeSamples = 10000;
     private static readonly long[] ExecutionTimes = new long[ExecutionTimeSamples];
 
     private static double _cpuFrequencyTimer;
@@ -45,7 +45,7 @@ public static class Program
     {
         _cpuFrequencyTimer += deltaTime;
         
-        if (!(_cpuFrequencyTimer > 1)) return;
+        if (!(_cpuFrequencyTimer > 0.2)) return;
         _cpuFrequencyTimer = 0;
         var cycleTime = ExecutionTimes.Average() / Stopwatch.Frequency;
         
