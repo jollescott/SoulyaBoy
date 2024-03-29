@@ -17,9 +17,23 @@ public static class Program
 
     private static bool _running = true;
 
+    private static readonly Stopwatch ExecutionStopwatch = new();
+    private static int _executionTimesIndex;
+    private const int ExecutionTimeSamples = 1000;
+    private static readonly long[] ExecutionTimes = new long[ExecutionTimeSamples];
+
+    private static double _cpuFrequencyTimer;
+    
     private static void EmulatorProc()
     {
-        while (_running) _sbmb = Core.SoulyaBoy.Run(_sbmb, _input, _renderer);
+        while (_running)
+        {
+            ExecutionStopwatch.Restart();
+            _sbmb = Core.SoulyaBoy.Run(_sbmb, _input, _renderer);
+            var val = ExecutionStopwatch.ElapsedTicks;
+            ExecutionTimes[_executionTimesIndex] = val;
+            _executionTimesIndex = _executionTimesIndex >= ExecutionTimeSamples - 1 ? 0 : _executionTimesIndex + 1;
+        }
     }
 
     private static void OnRender(double deltaTime)
@@ -27,9 +41,23 @@ public static class Program
         _renderer?.Render();
     }
 
+    private static void OnUpdate(double deltaTime)
+    {
+        _cpuFrequencyTimer += deltaTime;
+        
+        if (!(_cpuFrequencyTimer > 1)) return;
+        _cpuFrequencyTimer = 0;
+        var cycleTime = ExecutionTimes.Average() / Stopwatch.Frequency;
+        
+        if (_window == null || cycleTime == 0) return;
+        
+        var cycleFrequency = 1 / cycleTime;
+        _window.Title = $"SoulyaBoy ({Math.Round(cycleFrequency/Math.Pow(10,6),4)} MHz)";
+    }
+
     private static void OnLoad()
     {
-        _renderer = new Renderer(_window);
+        _renderer = new(_window);
 
         var inputContext = _window!.CreateInput();
         inputContext.Keyboards[0].KeyDown += OnKeyDown;
@@ -46,7 +74,7 @@ public static class Program
             _window?.Close();
         }
 
-        _emulatorThread = new Thread(EmulatorProc);
+        _emulatorThread = new(EmulatorProc);
         _emulatorThread.Start();
     }
 
@@ -132,6 +160,7 @@ public static class Program
 
         _window.Load += OnLoad;
         _window.Render += OnRender;
+        _window.Update += OnUpdate;
         _window.Closing += OnClosing;
 
         _window.Run();
