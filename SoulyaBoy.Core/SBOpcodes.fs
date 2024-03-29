@@ -511,6 +511,7 @@ module internal SBOpcodes =
                 do! Set Flags.H
             }
 
+        let BIT_0_A () = BIT (_.A) 0
         let BIT_2_A () = BIT (_.A) 2
         let BIT_3_A () = BIT (_.A) 3
         let BIT_5_A () = BIT (_.A) 5
@@ -607,6 +608,20 @@ module internal SBOpcodes =
                 do! Reset Flags.C
             }
 
+        let CCF () =
+            sb {
+                let! mb = SB.Get
+                let carry = mb.CPU.F &&& byte Flags.C
+                
+                do! Reset Flags.N
+                do! Reset Flags.H
+                
+                if carry <> 0uy then
+                    do! Set Flags.C
+                else
+                    do! Reset Flags.C
+            }
+        
         let SCF () =
             sb {
                 do! Reset Flags.N
@@ -697,6 +712,9 @@ module internal SBOpcodes =
         let INC_A () =
             INC_n (_.A) (fun cpu a -> { cpu with A = a })
 
+        let INC_B () =
+            INC_n (_.B) (fun cpu b -> { cpu with B = b })
+        
         let INC_C () =
             INC_n (_.C) (fun cpu c -> { cpu with C = c })
 
@@ -941,19 +959,34 @@ module internal SBOpcodes =
                 do! Reset Flags.H
                 do! SetIf Flags.C (nc = 1uy)
             }
+            
+        let SRL_A () =
+            sb {
+                let! mb = SB.Get
+                
+                let c = mb.CPU.A &&& 0b1uy
+                let a = (mb.CPU.A <<< 1) &&& ~~~ 0x80uy
+                
+                do! SB.Put { mb with CPU.A = a }
+                
+                do! SetIf Flags.Z (a = 0uy)
+                do! Reset Flags.N
+                do! Reset Flags.H
+                do! SetIf Flags.C (c = 1uy)
+            }
 
         let SLA_A () =
             sb {
                 let! mb = SB.Get
 
-                let c = mb.CPU.A <<< 7
-                let a = mb.CPU.A &&& ~~~ 0b1uy
+                let c = mb.CPU.A >>> 7
+                let a = (mb.CPU.A >>> 1) &&& ~~~ 0b1uy
 
                 do! SB.Put { mb with CPU.A = a }
 
                 do! SetIf Flags.Z (a = 0uy)
-                do! Set Flags.N
-                do! Set Flags.H
+                do! Reset Flags.N
+                do! Reset Flags.H
                 do! SetIf Flags.C (c = 1uy)
             }
 
@@ -1015,6 +1048,7 @@ module internal SBOpcodes =
                              (0xEAuy, (Short(ByteLoads.LD_nn_A), "LD (nn),A", 16))
 
                              (0x3Cuy, (Void(ByteALU.INC_A), "INC A", 4))
+                             (0x04uy, (Void(ByteALU.INC_B), "INC B", 4))
                              (0x0Cuy, (Void(ByteALU.INC_C), "INC C", 4))
                              (0x14uy, (Void(ByteALU.INC_D), "INC D", 4))
                              (0x1Cuy, (Void(ByteALU.INC_E), "INC E", 4))
@@ -1103,6 +1137,7 @@ module internal SBOpcodes =
                              (0x1Buy, (Void(ShortALU.DEC_DE), "DEC DE", 8))
                              (0x2Buy, (Void(ShortALU.DEC_HL), "DEC HL", 8))
 
+                             (0x3Fuy, (Void(Misc.CCF), "CCF", 4))
                              (0x37uy, (Void(Misc.SCF), "SCF", 4))
                              (0x27uy, (Void(Misc.DAA), "DAA", 4))
                              (0x2Fuy, (Void(Misc.CPL), "CPL", 4))
@@ -1118,6 +1153,7 @@ module internal SBOpcodes =
                              (0x86uy, (Void(Bit.RES_0_HL), "RES 0,(HL)", 8))
                              (0xBEuy, (Void(Bit.RES_7_HL), "RES 7,(HL)", 8))
                              (0x27uy, (Void(RotatesShifts.SLA_A), "SLA A", 8))
+                             (0x3Fuy, (Void(RotatesShifts.SRL_A), "SRL A", 8))
                              (0x37uy, (Void(Misc.SWAP_A), "SWAP A", 8))
                              (0x40uy, (Void(Bit.BIT_0_B), "BIT 0,B", 8))
                              (0x48uy, (Void(Bit.BIT_1_B), "BIT 1,B", 8))
@@ -1131,6 +1167,7 @@ module internal SBOpcodes =
                              (0x61uy, (Void(Bit.BIT_4_C), "BIT 4,C", 8))
                              (0x69uy, (Void(Bit.BIT_5_C), "BIT 5,C", 8))
                              (0x7Euy, (Void(Bit.BIT_7_HL), "BIT 7,(HL)", 8))
+                             (0x47uy, (Void(Bit.BIT_0_A), "BIT 0,A", 8))
                              (0x57uy, (Void(Bit.BIT_2_A), "BIT 2,A", 8))
                              (0x5Fuy, (Void(Bit.BIT_3_A), "BIT 3,A", 8))
                              (0x6Fuy, (Void(Bit.BIT_5_A), "BIT 5,A", 8))
