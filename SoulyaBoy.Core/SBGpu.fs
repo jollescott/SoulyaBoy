@@ -9,8 +9,15 @@ type SBGpuMode =
     | Draw = 3
 
 [<Struct; IsReadOnly>]
+type OBJDesc = {
+    RY: byte
+    TileId: byte
+    Flags: byte
+}
+
+[<Struct; IsReadOnly>]
 type SBGpuDrawCall =
-    | OBJ of byte
+    | OBJ of OBJDesc
     | Tile
 
 [<Struct; IsReadOnly>]
@@ -20,6 +27,8 @@ type SBGpu =
       LCDC: byte
       STAT: byte
       BGF: byte
+      OBP0: byte
+      OBP1: byte
       SCX: byte
       SCY: byte
       DMA: byte
@@ -35,6 +44,8 @@ module SBGpuFactory =
           LCDC = 0x91uy
           STAT = 0x81uy
           BGF = 0xFCuy
+          OBP0 = 0uy
+          OBP1 = 0uy 
           SCX = 0uy
           SCY = 0uy
           DMA = 0uy
