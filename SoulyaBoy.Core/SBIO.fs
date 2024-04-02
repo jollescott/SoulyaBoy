@@ -13,6 +13,8 @@ module SBIO =
         | IE
         | IF
         | BGF
+        | OBP0
+        | OBP1
         | LYC
         | LY
         | STAT
@@ -33,6 +35,8 @@ module SBIO =
                 | address when 0xff0fus = address -> IF
                 | address when 0xff80us <= address && address <= 0xfffeus -> Array(mb.MMU.HRAM, (address - 0xff80us))
                 | address when address = 0xFF47us -> BGF
+                | address when address = 0xFF48us -> OBP0
+                | address when address = 0xFF49us -> OBP1
                 | address when address = 0xFF46us -> DMA
                 | address when address = 0xFF45us -> LYC
                 | address when address = 0xFF44us -> LY
@@ -64,6 +68,8 @@ module SBIO =
                 | IE -> mb.CPU.IE
                 | IF -> mb.CPU.IF
                 | BGF -> mb.GPU.BGF
+                | OBP0 -> mb.GPU.OBP0
+                | OBP1 -> mb.GPU.OBP1
                 | DMA -> mb.GPU.DMA
                 | LYC -> mb.GPU.LYC
                 | LY -> mb.GPU.LY
@@ -95,6 +101,8 @@ module SBIO =
                 | IE -> { mb with CPU.IE = value }
                 | IF -> { mb with CPU.IF = value }
                 | BGF -> { mb with GPU.BGF = value }
+                | OBP0 -> { mb with GPU.OBP0 = value }
+                | OBP1 -> { mb with GPU.OBP1 = value }
                 | DMA ->
                     { mb with
                         GPU =
