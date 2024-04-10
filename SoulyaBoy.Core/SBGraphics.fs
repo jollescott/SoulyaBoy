@@ -25,19 +25,19 @@ module SBGraphics =
             let objAddress = 0xFE00us + (uint16 (2u * oamDots) + offset * 4us)
 
             let! objY = SBIO.ReadByte objAddress
-            let deltaY = int objY - int mb.GPU.LY - 16
+            let deltaY = int mb.GPU.LY - int objY + 16
             
-            let objSize = int (mb.GPU.LCDC &&& 0b10uy) >>> 1
+            let objSize = int (mb.GPU.LCDC &&& 0b100uy) >>> 1
             
-            if deltaY > -4 * (objSize+1) && deltaY < 4 * (objSize+1) then
+            if deltaY >= 0 && deltaY < 8 * (objSize+1) then
                 let! objX = SBIO.ReadByte(objAddress + 1us)
 
-                if objX > 8uy && objX < 160uy then
+                if objX >= 8uy && objX < 160uy then
                     let! tileIndex = SBIO.ReadByte(objAddress + 2us)
                     let! attributes = SBIO.ReadByte(objAddress + 3us)
-                    
+                   
                     for i = 0 to 8 do
-                        let objDesc = { RY = byte deltaY; TileId = tileIndex; Flags = attributes }
+                        let objDesc = { RY = byte deltaY; RX = byte i; TileId = tileIndex; Flags = attributes }
                         mb.GPU.DrawCalls[int objX - 8 + i] <- OBJ(objDesc)
         }
         
@@ -62,13 +62,13 @@ module SBGraphics =
             let sx = int dot
             let sy = int ly
             
-            let tx = sx % 8
-            let ty = desc.RY
+            let tx = int desc.RX
+            let ty = int desc.RY
             
             let address = 0x8000us + (uint16 desc.TileId) * 16us + (uint16 ty * 2us)
-            let palette = if desc.Flags &&& 0b1_0000uy <> 0uy then mb.GPU.OBP0 else mb.GPU.OBP1
+            let palette = if desc.Flags &&& 0b1_0000uy <> 0uy then mb.GPU.OBP1 else mb.GPU.OBP0
             
-            do! DrawTileSegment struct(sx, sy) struct(tx, tx) palette address pixelPipe
+            do! DrawTileSegment struct(sx, sy) struct(tx, ty) palette address pixelPipe
         }
 
     let DrawTile pixelPipe dot =
@@ -107,10 +107,10 @@ module SBGraphics =
                     + (uint16 tileId - 128us) * 16us
                     + (uint16 ty * 2us)
                     
-            do! DrawTileSegment struct(sx, sy) struct(sx, sy) mb.GPU.BGF address pixelPipe
+            do! DrawTileSegment struct(sx, sy) struct(tx, ty) mb.GPU.BGF address pixelPipe
         }
 
-    let DrawPixel pixelPipe dot ly =
+    let DrawPixel pixelPipe dot =
         sb {
             let! mb = SB.Get
 
@@ -201,10 +201,10 @@ module SBGraphics =
                     do! ScanOAM 1us
                 else if mb.GPU.Mode = SBGpuMode.Draw && LY < 144uy then
                     if mb.GPU.LCDC &&& 0b1uy > 0uy then
-                        do! DrawPixel pixelPipe dots LY
-                        do! DrawPixel pixelPipe (dots + 1u) LY
-                        do! DrawPixel pixelPipe (dots + 2u) LY
-                        do! DrawPixel pixelPipe (dots + 3u) LY
+                        do! DrawPixel pixelPipe dots
+                        do! DrawPixel pixelPipe (dots + 1u) 
+                        do! DrawPixel pixelPipe (dots + 2u)
+                        do! DrawPixel pixelPipe (dots + 3u)
 
                 if mb.GPU.DMATransfer then
                     do! ProcessDMATransfer

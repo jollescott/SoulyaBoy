@@ -11,6 +11,7 @@ type SBGpuMode =
 [<Struct; IsReadOnly>]
 type OBJDesc = {
     RY: byte
+    RX: byte
     TileId: byte
     Flags: byte
 }
