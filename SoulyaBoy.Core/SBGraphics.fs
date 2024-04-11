@@ -16,12 +16,11 @@ module SBGraphics =
             do! SB.Put { mb with GPU.DMATransfer = false }
         }
 
-    let ScanOAM offset =
+    let ScanOAM oamDots offset =
         sb {
             // TODO: Investigate why only running once without this line.
             let! mb = SB.Get
 
-            let oamDots = mb.GPU.Dots % 456u
             let objAddress = 0xFE00us + (uint16 (2u * oamDots) + offset * 4us)
 
             let! objY = SBIO.ReadByte objAddress
@@ -110,11 +109,11 @@ module SBGraphics =
             do! DrawTileSegment struct(sx, sy) struct(tx, ty) mb.GPU.BGF address pixelPipe
         }
 
-    let DrawPixel pixelPipe dot =
+    let DrawPixel pixelPipe lineDots =
         sb {
             let! mb = SB.Get
 
-            let drawDot = (dot - 80u) % 160u
+            let drawDot = (lineDots - 80u) % 160u
             let drawCall = mb.GPU.DrawCalls[int drawDot]
 
             match drawCall with
@@ -197,14 +196,13 @@ module SBGraphics =
 
                 if mb.GPU.Mode = SBGpuMode.OAM
                    && mb.GPU.LCDC &&& 0b10uy > 0uy then
-                    do! ScanOAM 0us
-                    do! ScanOAM 1us
+                    do! ScanOAM lineDots 0us
+                    do! ScanOAM lineDots 1us
                 else if mb.GPU.Mode = SBGpuMode.Draw && LY < 144uy then
-                    if mb.GPU.LCDC &&& 0b1uy > 0uy then
-                        do! DrawPixel pixelPipe dots
-                        do! DrawPixel pixelPipe (dots + 1u) 
-                        do! DrawPixel pixelPipe (dots + 2u)
-                        do! DrawPixel pixelPipe (dots + 3u)
+                    do! DrawPixel pixelPipe lineDots
+                    do! DrawPixel pixelPipe (lineDots + 1u) 
+                    do! DrawPixel pixelPipe (lineDots + 2u)
+                    do! DrawPixel pixelPipe (lineDots + 3u)
 
                 if mb.GPU.DMATransfer then
                     do! ProcessDMATransfer
