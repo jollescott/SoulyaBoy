@@ -53,4 +53,4 @@ module SBGpuFactory =
           DMATransfer = false
           DrawCalls = Array.create 160 SBGpuDrawCall.Tile
           Dots = 0u
-          Mode = SBGpuMode.VBlank }
+          Mode = SBGpuMode.OAM }

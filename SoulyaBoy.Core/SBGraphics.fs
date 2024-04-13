@@ -20,23 +20,23 @@ module SBGraphics =
         sb {
             // TODO: Investigate why only running once without this line.
             let! mb = SB.Get
-
+            
             let objAddress = 0xFE00us + (uint16 (2u * oamDots) + offset * 4us)
-
+            
             let! objY = SBIO.ReadByte objAddress
-            let deltaY = int mb.GPU.LY - int objY + 16
+            let overlapCheck = int mb.GPU.LY - (int objY - 16)
             
-            let objSize = int (mb.GPU.LCDC &&& 0b100uy) >>> 1
-            
-            if deltaY >= 0 && deltaY < 8 * (objSize+1) then
+            let objSize = int (mb.GPU.LCDC &&& 0b100uy) >>> 2
+                        
+            if overlapCheck >= 0 && overlapCheck < 8*(objSize+1) then
                 let! objX = SBIO.ReadByte(objAddress + 1us)
 
                 if objX >= 8uy && objX < 160uy then
                     let! tileIndex = SBIO.ReadByte(objAddress + 2us)
                     let! attributes = SBIO.ReadByte(objAddress + 3us)
-                   
-                    for i = 0 to 8 do
-                        let objDesc = { RY = byte deltaY; RX = byte i; TileId = tileIndex; Flags = attributes }
+                                                                                                                                                   
+                    for i = 0 to 7 do
+                        let objDesc = { RY = byte overlapCheck; RX = byte i; TileId = tileIndex; Flags = attributes }
                         mb.GPU.DrawCalls[int objX - 8 + i] <- OBJ(objDesc)
         }
         
@@ -115,7 +115,7 @@ module SBGraphics =
 
             let drawDot = (lineDots - 80u) % 160u
             let drawCall = mb.GPU.DrawCalls[int drawDot]
-
+                        
             match drawCall with
             | Tile -> do! DrawTile pixelPipe drawDot
             | OBJ objDesc -> do! DrawOBJ pixelPipe drawDot objDesc
@@ -138,7 +138,7 @@ module SBGraphics =
             let stat =
                 (0b1111_1100uy &&& mb.GPU.STAT)
                 ||| (0b11uy &&& byte mode)
-
+            
             do! SB.Put { mb with GPU = { mb.GPU with Mode = mode; STAT = stat } }
         }
 
@@ -147,19 +147,17 @@ module SBGraphics =
             let! mb = SB.Get
 
             let ly =
-                if mb.GPU.LY = 153uy then
-                    0uy
-                else if mb.GPU.Dots % 456u = 0u then
-                    mb.GPU.LY + 1uy
+                if mb.GPU.Dots > 0u && mb.GPU.Dots % 456u = 0u then
+                    if mb.GPU.LY = 153uy then 0uy else mb.GPU.LY + 1uy
                 else
                     mb.GPU.LY
-
+            
             let dots =
                 if mb.GPU.Dots = 70224u then
                     0u
                 else
                     mb.GPU.Dots + 4u
-
+            
             do! SB.Put { mb with GPU = { mb.GPU with Dots = dots; LY = ly } }
         }
 
@@ -172,30 +170,30 @@ module SBGraphics =
             else if (mb.GPU.STAT >>> 2) = 1uy && mb.GPU.LYC <> ly then
                 do! SB.Put { mb with GPU.STAT = (mb.GPU.STAT &&& 0b1111_1011uy) ||| 0b011uy }
         }
-
+    
     let Process pixelPipe =
         sb {
             let! mb = SB.Get
-
-            let dots = mb.GPU.Dots
-            let LY = mb.GPU.LY
-
+            
             if mb.GPU.LCDC >>> 7 = 1uy then
-                let lineDots = dots % 456u
+                let dots = mb.GPU.Dots
+                let LY = mb.GPU.LY
 
-                if LY = 144uy && mb.GPU.Mode = SBGpuMode.HBlank then
+                let lineDots = dots % 456u
+                
+                if LY = 143uy && mb.GPU.Mode = SBGpuMode.HBlank then
                     do! UpdateGPUMode SBGpuMode.VBlank
                     do! QueueVBlank
-                else if (lineDots = 0u && mb.GPU.Mode = SBGpuMode.HBlank)
+                else if (lineDots = 452u && mb.GPU.Mode = SBGpuMode.HBlank)
                         || (mb.GPU.Mode = SBGpuMode.VBlank && LY = 0uy) then
                     do! UpdateGPUMode SBGpuMode.OAM
-                else if lineDots = 80u && mb.GPU.Mode = SBGpuMode.OAM then
+                else if lineDots = 76u && mb.GPU.Mode = SBGpuMode.OAM then
                     do! UpdateGPUMode SBGpuMode.Draw
-                else if lineDots = 252u && mb.GPU.Mode = SBGpuMode.Draw then
+                else if lineDots = 236u && mb.GPU.Mode = SBGpuMode.Draw then
                     do! UpdateGPUMode SBGpuMode.HBlank
 
                 if mb.GPU.Mode = SBGpuMode.OAM
-                   && mb.GPU.LCDC &&& 0b10uy > 0uy then
+                   && mb.GPU.LCDC &&& 0b10uy <> 0uy then
                     do! ScanOAM lineDots 0us
                     do! ScanOAM lineDots 1us
                 else if mb.GPU.Mode = SBGpuMode.Draw && LY < 144uy then
@@ -206,7 +204,7 @@ module SBGraphics =
 
                 if mb.GPU.DMATransfer then
                     do! ProcessDMATransfer
-
-            do! UpdateLYC LY
-            do! UpdateGPUState
+            
+                do! UpdateLYC LY
+                do! UpdateGPUState
         }
