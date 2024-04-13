@@ -519,6 +519,7 @@ module internal SBOpcodes =
         let BIT_7_A () = BIT (_.A) 7
 
         let BIT_0_B () = BIT (_.B) 0
+        let BIT_0_D () = BIT (_.D) 0 
         let BIT_1_B () = BIT (_.B) 1
         let BIT_2_B () = BIT (_.B) 2
         let BIT_3_B () = BIT (_.B) 3
@@ -1006,6 +1007,7 @@ module internal SBOpcodes =
                              (0x47uy, (Register(ByteLoads.LD_B, (_.A)), "LD B,A", 4))
                              (0x40uy, (Register(ByteLoads.LD_B, (_.B)), "LD B,B", 4))
                              (0x41uy, (Register(ByteLoads.LD_B, (_.C)), "LD B,C", 4))
+                             (0x42uy, (Register(ByteLoads.LD_B, (_.D)), "LD B,D", 4))
                              (0x0Euy, (Byte(ByteLoads.LD_C), "LD C,n", 8))
                              (0x4Fuy, (Register(ByteLoads.LD_C, (_.A)), "LD C,A", 4))
                              (0x48uy, (Register(ByteLoads.LD_C, (_.B)), "LD C,B", 4))
@@ -1099,8 +1101,9 @@ module internal SBOpcodes =
                              (0x28uy, (Byte(Jump.JR_Z), "JR N", 8))
                              (0x30uy, (Byte(Jump.JR_NC), "JR NC", 8))
                              (0x38uy, (Byte(Jump.JR_C), "JR C", 8))
-                             (0xEFuy, (VoidExtra(Jump.RST, 0x28), "RST 28H", 16))
-                             (0xFFuy, (VoidExtra(Jump.RST, 0x38), "RST 38H", 16))
+                             (0xD7uy, (VoidExtra(Jump.RST, 0x10), "RST 10H", 32))
+                             (0xEFuy, (VoidExtra(Jump.RST, 0x28), "RST 28H", 32))
+                             (0xFFuy, (VoidExtra(Jump.RST, 0x38), "RST 38H", 32))
 
                              (0xCDuy, (Short(Calls.CALL), "CALL nn", 12))
                              (0xCCuy, (Short(Calls.CALL_Z), "CALL Z,nn", 12))
@@ -1156,6 +1159,7 @@ module internal SBOpcodes =
                              (0x3Fuy, (Void(RotatesShifts.SRL_A), "SRL A", 8))
                              (0x37uy, (Void(Misc.SWAP_A), "SWAP A", 8))
                              (0x40uy, (Void(Bit.BIT_0_B), "BIT 0,B", 8))
+                             (0x42uy, (Void(Bit.BIT_0_D), "BIT 0,D", 8))
                              (0x48uy, (Void(Bit.BIT_1_B), "BIT 1,B", 8))
                              (0x50uy, (Void(Bit.BIT_2_B), "BIT 2,B", 8))
                              (0x58uy, (Void(Bit.BIT_3_B), "BIT 3,B", 8))
