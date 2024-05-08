@@ -810,7 +810,7 @@ module internal SBOpcodes =
             sb {
                 let! mb = SB.Get
 
-                let carry = (mb.CPU.F &&& byte Flags.C)
+                let carry = (mb.CPU.F &&& byte Flags.C) >>> 4
                 let a = mb.CPU.A
                 let r = int a + int n + int carry
 
