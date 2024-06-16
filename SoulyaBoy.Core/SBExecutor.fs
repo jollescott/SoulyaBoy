@@ -74,9 +74,9 @@ module internal SBExecutor =
                 do! IncrementPC 0us
                 let! exOpcode = ReadOpcode
 
-                return! RetrieveOpcodeInstruction exOpcode SBOpcodes.CB_EXTENSIONS
+                return (SBOpcodes.CB_EXTENSIONS exOpcode)
             else
-                return! RetrieveOpcodeInstruction opcode SBOpcodes.INSTRUCTIONS
+                return (SBOpcodes.INSTRUCTIONS opcode)
         }
 
     let private ResolveOperation instruction =
@@ -89,15 +89,15 @@ module internal SBExecutor =
 
             let result =
                 match instruction with
-                | Const c, n, cyc -> c (), n, 0us, cyc
-                | ConstExtra (c, e), n, cyc -> c ((), e), n, 0us, cyc
-                | Void f, n, cyc -> f (), n, 0us, cyc
-                | VoidExtra (f, e), n, cyc -> f ((), e), n, 0us, cyc
-                | Byte f, n, cyc -> f byteImmediate, n, 1us, cyc
-                | ByteExtra (f, e), n, cyc -> f (byteImmediate, e), n, 1us, cyc
-                | Short f, n, cyc -> f shortIntermediate, n, 2us, cyc
-                | ShortExtra (f, e), n, cyc -> f (shortIntermediate, e), n, 2us, cyc
-                | Register (f, r), n, cyc -> f (r mb.CPU), n, 0us, cyc
+                | struct(Const c, n, cyc) -> c (), n, 0us, cyc
+                | struct(ConstExtra (c, e), n, cyc) -> c ((), e), n, 0us, cyc
+                | struct(Void f, n, cyc) -> f (), n, 0us, cyc
+                | struct(VoidExtra (f, e), n, cyc) -> f ((), e), n, 0us, cyc
+                | struct(Byte f, n, cyc) -> f byteImmediate, n, 1us, cyc
+                | struct(ByteExtra (f, e), n, cyc) -> f (byteImmediate, e), n, 1us, cyc
+                | struct(Short f, n, cyc) -> f shortIntermediate, n, 2us, cyc
+                | struct(ShortExtra (f, e), n, cyc) -> f (shortIntermediate, e), n, 2us, cyc
+                | struct(Register (f, r), n, cyc) -> f (r mb.CPU), n, 0us, cyc
 
             return result
         }
