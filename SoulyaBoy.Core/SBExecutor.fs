@@ -29,7 +29,7 @@ module internal SBExecutor =
         }
 
     let rec private TryRunInterrupt i IE IF =
-        sb {
+        sb {            
             if int IE >>> i <> 0 && int IF >>> i <> 0 then
                 let! mb = SB.Get
                 do! SB.Put { mb with CPU.IF = IF &&& ~~~(1uy <<< i) }

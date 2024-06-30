@@ -531,6 +531,7 @@ module internal SBOpcodes =
         let BIT_0_C () = BIT (_.C) 0
         let BIT_4_C () = BIT (_.C) 4
         let BIT_5_C () = BIT (_.C) 5
+        let BIT_6_C () = BIT (_.C) 6
 
         let BIT_HL b =
             sb {
@@ -573,6 +574,7 @@ module internal SBOpcodes =
             }
 
         let SET_7_HL () = SET_HL 7
+        let SET_3_HL () = SET_HL 3
 
     module Calls =
         let CALL nn =
@@ -631,7 +633,22 @@ module internal SBOpcodes =
             }
 
         let DAA () =
-            sb { printf "TODO: Implement DAA later. \n" }
+            sb {
+                let! mb = SB.Get
+                let A = mb.CPU.A
+                
+                let lNibble = A &&& 0xFuy
+                let hNibble = A &&& ~~~0xFuy
+                
+                let lNibble2, hNibble2 = if lNibble > 10uy then (lNibble - 10uy, hNibble + 1uy) else (lNibble, hNibble)
+                let A2 = hNibble2 <<< 4 ||| lNibble2;
+                
+                do! SB.Put { mb with CPU.A = A2 }
+                
+                do! SetIf Flags.Z (A = 0uy)
+                do! Reset Flags.H
+                do! SetIf Flags.C (lNibble > 10uy)
+            }
 
         let CPL () =
             sb {
@@ -912,7 +929,7 @@ module internal SBOpcodes =
         let CP_n n =
             sb {
                 let! _ = SUB_base n
-                ()
+                return ()
             }
 
         let CP_HL () =
@@ -949,7 +966,7 @@ module internal SBOpcodes =
                 let! mb = SB.Get
 
                 // TODO: Move to param when implementing RRCA
-                let oc = mb.CPU.F &&& 0x20uy
+                let oc = mb.CPU.F &&& 0b1_0000uy
                 let nc = mb.CPU.A &&& 0b1uy
                 let a = (mb.CPU.A >>> 1) ||| (oc <<< 7)
 
@@ -966,7 +983,7 @@ module internal SBOpcodes =
                 let! mb = SB.Get
                 
                 let c = mb.CPU.A &&& 0b1uy
-                let a = (mb.CPU.A <<< 1) &&& ~~~ 0x80uy
+                let a = mb.CPU.A >>> 1
                 
                 do! SB.Put { mb with CPU.A = a }
                 
@@ -981,7 +998,7 @@ module internal SBOpcodes =
                 let! mb = SB.Get
 
                 let c = mb.CPU.A >>> 7
-                let a = (mb.CPU.A >>> 1) &&& ~~~ 0b1uy
+                let a = (mb.CPU.A <<< 1) &&& ~~~ 0b1uy
 
                 do! SB.Put { mb with CPU.A = a }
 
@@ -1170,6 +1187,7 @@ module internal SBOpcodes =
                              (0x41uy, (Void(Bit.BIT_0_C), "BIT 0,C", 8))
                              (0x61uy, (Void(Bit.BIT_4_C), "BIT 4,C", 8))
                              (0x69uy, (Void(Bit.BIT_5_C), "BIT 5,C", 8))
+                             (0x71uy, (Void(Bit.BIT_6_C), "BIT 6,C", 8))
                              (0x7Euy, (Void(Bit.BIT_7_HL), "BIT 7,(HL)", 8))
                              (0x47uy, (Void(Bit.BIT_0_A), "BIT 0,A", 8))
                              (0x57uy, (Void(Bit.BIT_2_A), "BIT 2,A", 8))
@@ -1177,4 +1195,5 @@ module internal SBOpcodes =
                              (0x6Fuy, (Void(Bit.BIT_5_A), "BIT 5,A", 8))
                              (0x77uy, (Void(Bit.BIT_6_A), "BIT 6,A", 8))
                              (0x7Fuy, (Void(Bit.BIT_7_A), "BIT 7,A", 8))
-                             (0xFEuy, (Void(Bit.SET_7_HL), "SET 7,(HL)", 8)) ]
+                             (0xFEuy, (Void(Bit.SET_7_HL), "SET 7,(HL)", 8))
+                             (0xDEuy, (Void(Bit.SET_3_HL), "SET 3,(HL)", 8)) ]

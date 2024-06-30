@@ -99,7 +99,7 @@ module SBIO =
                     arr[int adr] <- value
                     mb
                 | IE -> { mb with CPU.IE = value }
-                | IF -> { mb with CPU.IF = value }
+                | IF -> assert(value < 2uy); { mb with CPU.IF = value }
                 | BGF -> { mb with GPU.BGF = value }
                 | OBP0 -> { mb with GPU.OBP0 = value }
                 | OBP1 -> { mb with GPU.OBP1 = value }

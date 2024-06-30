@@ -21,8 +21,8 @@ module SoulyaBoy =
                 (oldJoypad &&& 0b11_0000uy) ||| buttons
             else
                 oldJoypad
-
+                
         let struct (_, mb) =
-            SB.Run (SBExecutor.Run pixelPipe.DrawPixel) { oldMb with Joypad = joypad }
+            SB.Run (SBExecutor.Run pixelPipe.DrawPixel) { oldMb with Joypad = joypad; }
 
         mb
