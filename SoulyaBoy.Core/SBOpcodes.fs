@@ -532,7 +532,8 @@ module internal SBOpcodes =
         let BIT_4_C () = BIT (_.C) 4
         let BIT_5_C () = BIT (_.C) 5
         let BIT_6_C () = BIT (_.C) 6
-
+        let BIT_7_C () = BIT (_.C) 7
+        
         let BIT_HL b =
             sb {
                 let! mb = SB.Get
@@ -1095,6 +1096,7 @@ module internal SBOpcodes =
                              (0xA7uy, (Register(ByteALU.AND, (_.A)), "AND A", 8))
                              (0xA1uy, (Register(ByteALU.AND, (_.C)), "AND C", 8))
                              (0xE6uy, (Byte(ByteALU.AND), "AND #", 8))
+                             (0xB7uy, (Register(ByteALU.OR, (_.A)), "OR A", 4))
                              (0xB0uy, (Register(ByteALU.OR, (_.B)), "OR B", 4))
                              (0xB1uy, (Register(ByteALU.OR, (_.C)), "OR C", 4))
                              (0xB2uy, (Register(ByteALU.OR, (_.D)), "OR D", 4))
@@ -1103,6 +1105,7 @@ module internal SBOpcodes =
                              (0xAFuy, (Register(ByteALU.XOR, (_.A)), "XOR A", 4))
                              (0xA9uy, (Register(ByteALU.XOR, (_.C)), "XOR C", 4))
                              (0xEEuy, (Byte(ByteALU.XOR), "XOR n", 8))
+                             (0xB8uy, (Register(ByteALU.CP_n, (_.B)), "CP B", 4))
                              (0xB9uy, (Register(ByteALU.CP_n, (_.C)), "CP C", 4))
                              (0xBEuy, (Void(ByteALU.CP_HL), "CP HL", 8))
                              (0xFEuy, (Byte(ByteALU.CP_n), "CP n", 8))
@@ -1188,6 +1191,7 @@ module internal SBOpcodes =
                              (0x61uy, (Void(Bit.BIT_4_C), "BIT 4,C", 8))
                              (0x69uy, (Void(Bit.BIT_5_C), "BIT 5,C", 8))
                              (0x71uy, (Void(Bit.BIT_6_C), "BIT 6,C", 8))
+                             (0x79uy, (Void(Bit.BIT_7_C), "BIT 7,C", 8))
                              (0x7Euy, (Void(Bit.BIT_7_HL), "BIT 7,(HL)", 8))
                              (0x47uy, (Void(Bit.BIT_0_A), "BIT 0,A", 8))
                              (0x57uy, (Void(Bit.BIT_2_A), "BIT 2,A", 8))
