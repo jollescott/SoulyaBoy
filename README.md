@@ -1,5 +1,7 @@
 # Soul~~ja~~yaBoy
 
+!["Soulyaboy" screenshot](./screenshot.png)
+
 A Gameboy emulator written in F#.
 
 ## Great Reference Material Used
