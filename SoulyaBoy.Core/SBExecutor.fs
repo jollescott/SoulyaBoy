@@ -47,7 +47,7 @@ module internal SBExecutor =
             let IF = mb.CPU.IF
 
             if (mb.CPU.IME = Enabled) && IE <> 0uy && IF <> 0uy then
-                do! SB.Put { mb with CPU.IME = Disabled }
+                do! SB.Put { mb with CPU.IME = Disabled; CPU.Halt = false }
                 do! TryRunInterrupt 0 IE IF
         }
 
@@ -107,6 +107,12 @@ module internal SBExecutor =
             let! mb = SB.Get
             return mb.CPU.Stop
         }
+        
+    let GetHalt =
+        sb {
+            let! mb = SB.Get
+            return mb.CPU.Halt
+        }
 
     let internal Run pixelPipe =
         sb {
@@ -115,12 +121,15 @@ module internal SBExecutor =
             if not stop then
                 do! UpdateIMEFlag
                 do! HandleInterrupts
+                
+                let! halt = GetHalt
 
-                let! instruction = FetchInstruction
-                let! operation, _, pcd, _ = ResolveOperation instruction
+                if not halt then
+                    let! instruction = FetchInstruction
+                    let! operation, _, pcd, _ = ResolveOperation instruction
 
-                do! IncrementPC pcd
-                do! operation
+                    do! IncrementPC pcd
+                    do! operation
 
                 do! SBGraphics.Process pixelPipe
 

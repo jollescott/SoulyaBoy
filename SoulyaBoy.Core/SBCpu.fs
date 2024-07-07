@@ -30,6 +30,7 @@ type SBCpu =
       IF: byte
 
       Stop: bool
+      Halt: bool
 
       IME: SBCpuInterrupt }
 
@@ -52,4 +53,5 @@ module SBCpuFactory =
           IE = 0uy
           IF = 0uy
           Stop = false
+          Halt = false
           IME = Enabled }
