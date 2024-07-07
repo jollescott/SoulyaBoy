@@ -585,13 +585,19 @@ module internal SBOpcodes =
                 do! Jump.JP nn
             }
 
-        let CALL_Z nn =
+        let CALL_OP op flag nn =
             sb {
                 let! mb = SB.Get
 
-                if mb.CPU.F &&& byte Flags.Z <> 0uy then
+                if op (mb.CPU.F &&& byte flag) 0uy then
                     do! CALL nn
             }
+            
+        let CALL_N = CALL_OP (=)
+        let CALL_ = CALL_OP (<>)
+        
+        let CALL_NZ = CALL_N Flags.Z
+        let CALL_Z = CALL_ Flags.Z
 
     module Misc =
         let SWAP_A () =
@@ -659,6 +665,13 @@ module internal SBOpcodes =
                 do! SB.Put { mb with CPU.A = a }
                 do! Set Flags.N
                 do! Set Flags.H
+            }
+            
+        let HALT () =
+            sb {
+                let! mb = SB.Get
+                do! SB.Put { mb with CPU.Halt = true }
+                do! SB.Put { mb with CPU.Halt = true }
             }
 
         let STOP () =
@@ -1084,6 +1097,7 @@ module internal SBOpcodes =
                              (0x35uy, (Void(ByteALU.DEC_addr_HL), "DEC (HL)", 12))
                              (0x87uy, (Register(ByteALU.ADD_n, (_.A)), "ADD A,A", 4))
                              (0x80uy, (Register(ByteALU.ADD_n, (_.B)), "ADD A,B", 4))
+                             (0x81uy, (Register(ByteALU.ADD_n, (_.C)), "ADD A,C", 4))
                              (0x82uy, (Register(ByteALU.ADD_n, (_.D)), "ADD A,D", 4))
                              (0x85uy, (Register(ByteALU.ADD_n, (_.L)), "ADD A,L", 4))
                              (0xC6uy, (Byte(ByteALU.ADD_n), "ADD A,n", 8))
@@ -1121,11 +1135,14 @@ module internal SBOpcodes =
                              (0x28uy, (Byte(Jump.JR_Z), "JR N", 8))
                              (0x30uy, (Byte(Jump.JR_NC), "JR NC", 8))
                              (0x38uy, (Byte(Jump.JR_C), "JR C", 8))
+                             (0xCFuy, (VoidExtra(Jump.RST, 0x08), "RST 08H", 32))
                              (0xD7uy, (VoidExtra(Jump.RST, 0x10), "RST 10H", 32))
+                             (0xDFuy, (VoidExtra(Jump.RST, 0x18), "RST 18H", 32))
                              (0xEFuy, (VoidExtra(Jump.RST, 0x28), "RST 28H", 32))
                              (0xFFuy, (VoidExtra(Jump.RST, 0x38), "RST 38H", 32))
 
                              (0xCDuy, (Short(Calls.CALL), "CALL nn", 12))
+                             (0xC4uy, (Short(Calls.CALL_NZ), "CALL NZ,nn", 12))
                              (0xCCuy, (Short(Calls.CALL_Z), "CALL Z,nn", 12))
 
                              (0xC9uy, (Void(Returns.RET), "RET", 8))
@@ -1164,6 +1181,7 @@ module internal SBOpcodes =
                              (0x37uy, (Void(Misc.SCF), "SCF", 4))
                              (0x27uy, (Void(Misc.DAA), "DAA", 4))
                              (0x2Fuy, (Void(Misc.CPL), "CPL", 4))
+                             (0x76uy, (Void(Misc.HALT), "HALT", 4))
                              (0x10uy, (Void(Misc.STOP), "STOP", 4))
                              (0xF3uy, (Void(Misc.DI), "DI", 4))
                              (0xFBuy, (Void(Misc.IE), "IE", 4))
