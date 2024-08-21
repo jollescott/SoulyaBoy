@@ -4,7 +4,9 @@ module SoulyaBoy =
     type IPixelPipe =
         abstract DrawPixel: int -> int -> byte -> unit
 
-    let CreateSoulyaBoy rom = SBMbFactory.CreateSBMb(rom)
+    let CreateSoulyaBoy rom = 
+        SBIO.ROM <- Loaded(rom)
+        SBMbFactory.CreateSBMb
 
     let Run oldMb (input: SBInput) (pixelPipe: IPixelPipe) =
         let oldJoypad = oldMb.Joypad

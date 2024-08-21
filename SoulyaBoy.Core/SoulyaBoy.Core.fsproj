@@ -9,7 +9,6 @@
         <Compile Include="SBUtils.fs"/>
         <Compile Include="SBInput.fs"/>
         <Compile Include="SBGpu.fs"/>
-        <Compile Include="SBMmu.fs"/>
         <Compile Include="SBCpu.fs"/>
         <Compile Include="SBMb.fs"/>
         <Compile Include="SB.fs"/>
