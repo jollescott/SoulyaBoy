@@ -9,7 +9,7 @@ module SB =
     let Put mmb = SB(fun _ -> struct ((), mmb))
 
 type SBBuilder() =
-    member inline this.Zero() = SB(fun mb -> ((), mb))
+    member inline _.Zero() = SB(fun mb -> ((), mb))
     member inline _.Return(x) = SB(fun mb -> (x, mb))
     member inline _.ReturnFrom(x) = x
 
