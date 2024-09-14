@@ -6,21 +6,24 @@
         <AnalysisLevel>latest-recommended</AnalysisLevel>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="SBUtils.fs"/>
-        <Compile Include="SBInput.fs"/>
-        <Compile Include="SBGpu.fs"/>
-        <Compile Include="SBMmu.fs"/>
-        <Compile Include="SBCpu.fs"/>
-        <Compile Include="SBMb.fs"/>
-        <Compile Include="SB.fs"/>
-        <Compile Include="SBIO.fs"/>
-        <Compile Include="SBGraphics.fs"/>
-        <Compile Include="SBOpcodes.fs"/>
-        <Compile Include="SBInterrupts.fs"/>
-        <Compile Include="SBExecutor.fs"/>
-        <Compile Include="SoulyaBoy.fs"/>
+        <Compile Include="SBUtils.fs" />
+        <Compile Include="SBInput.fs" />
+        <Compile Include="SBGpu.fs" />
+        <Compile Include="SBMmu.fs" />
+        <Compile Include="SBCpu.fs" />
+        <Compile Include="SBMb.fs" />
+        <Compile Include="SB.fs" />
+        <Compile Include="SBIO.fs" />
+        <Compile Include="SBGraphics.fs" />
+        <Compile Include="SBOpcodes.fs" />
+        <Compile Include="SBInterrupts.fs" />
+        <Compile Include="SBExecutor.fs" />
+        <Compile Include="SoulyaBoy.fs" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Update="FSharp.Core" Version="8.0.100"/>
+        <PackageReference Update="FSharp.Core" Version="8.0.100" />
+    </ItemGroup>
+    <ItemGroup>
+      <PackageReference Include="Fable.Core" Version="4.3.0" />
     </ItemGroup>
 </Project>
